@@ -56,7 +56,7 @@ async function callGemini(persona, chatHistory, modelList, modelIndex = 0) {
     return data.candidates[0].content.parts[0].text.trim();
 }
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
     try {
