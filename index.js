@@ -1,12 +1,21 @@
 require('dotenv').config();
 const readline = require('readline');
-const AIModel = require('./src/model');
+const { AIModel, getWorkingModels } = require('./src/model');
 const Orchestrator = require('./src/orchestrator');
 
 async function main() {
-    const analyst = new AIModel("Analyst", "You are The Analyst. Purely logical, focused on data and facts. Be concise.");
-    const creative = new AIModel("Creative", "You are The Creative. Optimistic, out-of-the-box thinker. Be concise.");
-    const critic = new AIModel("Critic", "You are The Critic. Harsh, cynical, finds flaws. Be concise.");
+    // 1. Find 3 distinct working models from Google
+    const workingModelIds = await getWorkingModels(3);
+    
+    // Pad the array just in case Google only had 2 working models today
+    while(workingModelIds.length < 3) {
+        workingModelIds.push(workingModelIds[0]);
+    }
+
+    // 2. Assign a different model to each persona
+    const analyst = new AIModel("Analyst", "You are The Analyst. Purely logical, focused on data and facts. Be concise.", workingModelIds[0]);
+    const creative = new AIModel("Creative", "You are The Creative. Optimistic, out-of-the-box thinker. Be concise.", workingModelIds[1]);
+    const critic = new AIModel("Critic", "You are The Critic. Harsh, cynical, finds flaws. Be concise.", workingModelIds[2]);
 
     const orchestrator = new Orchestrator([analyst, creative, critic]);
 
@@ -31,17 +40,15 @@ async function main() {
             return;
         }
 
-        // Process the message through the orchestrator
         const responses = await orchestrator.processUserMessage(input);
 
-        // Print everyone's responses
         for (const res of responses) {
             console.log(`\n=========================================`);
             console.log(`[${res.name}]:`);
             console.log(`=========================================`);
             console.log(res.text);
         }
-        console.log("\n"); // Spacing
+        console.log("\n"); 
         
         rl.prompt();
     });
