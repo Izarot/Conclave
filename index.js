@@ -3,26 +3,36 @@ const AIModel = require('./src/model');
 const Orchestrator = require('./src/orchestrator');
 
 async function main() {
-    // We get the prompt from environment variables (for GitHub Actions) or default to a test prompt
-    const userPrompt = process.env.USER_PROMPT || "What is the most efficient way to travel between planets, considering current physics limitations?";
+    const userPrompt = process.env.USER_PROMPT || "Should humanity focus on building a Mars colony or an underwater city first?";
 
-    const workerModel = new AIModel(
-        "Worker-1", 
-        "You are an expert problem solver. Be concise and logical."
+    // Create our 3 experts
+    const analyst = new AIModel(
+        "Analyst", 
+        "You are The Analyst. You are purely logical, focus on data, costs, and structural feasibility. You speak concisely."
+    );
+    
+    const creative = new AIModel(
+        "Creative", 
+        "You are The Creative. You think about human culture, inspiration, and out-of-the-box ideas. You are optimistic."
+    );
+    
+    const critic = new AIModel(
+        "Critic", 
+        "You are The Critic. You are harsh, cynical, and look for every possible flaw, danger, and risk. You do not sugarcoat things."
     );
 
-    const orchestrator = new Orchestrator();
+    const orchestrator = new Orchestrator([analyst, creative, critic]);
 
     try {
-        const finalResult = await orchestrator.start(userPrompt, workerModel);
+        const finalResult = await orchestrator.start(userPrompt);
         console.log("=========================================");
-        console.log("📜 FINAL REFINED OUTPUT:");
+        console.log("📜 FINAL CONCLAVE DECISION:");
         console.log("=========================================");
         console.log(finalResult);
         console.log("=========================================\n");
     } catch (error) {
         console.error("❌ Orchestration failed:", error.message);
-        process.exit(1); // Exit with error code so GitHub Actions marks it as failed
+        process.exit(1);
     }
 }
 
