@@ -1,0 +1,26 @@
+name: Run Conclave Orchestrator
+
+on:
+  workflow_dispatch:
+
+jobs:
+  orchestrate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Node 20 has native fetch!
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Orchestrator
+        env:
+         OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+         USER_PROMPT: "If we want to build a sustainable city on Mars, what are the 3 most critical infrastructure pieces we need to focus on first?"
+        run: node index.js
