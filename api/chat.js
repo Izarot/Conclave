@@ -1,60 +1,72 @@
-const MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+const MODELS_URL = "https://openrouter.ai/api/v1/models";
+const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const PERSONAS = {
-    Analyst: "You are The Analyst. Purely logical, focused on data and facts. Respond in ONE short sentence.",
-    Creative: "You are The Creative. Optimistic, out-of-the-box thinker. Respond in ONE short sentence.",
-    Critic: "You are The Critic. Harsh, cynical, finds flaws. Respond in ONE short sentence."
+    Analyst: "You are The Analyst. Purely logical, focused on data and facts. Respond in ONE short sentence. Do not output internal reasoning.",
+    Creative: "You are The Creative. Optimistic, out-of-the-box thinker. Respond in ONE short sentence. Do not output internal reasoning.",
+    Critic: "You are The Critic. Harsh, cynical, finds flaws. Respond in ONE short sentence. Do not output internal reasoning."
 };
 
 let cachedModels = null;
 
 async function getModelList() {
-    if (cachedModels) return cachedModels;
-    const res = await fetch(`${MODELS_URL}?key=${process.env.GEMINI_API_KEY}`);
-    const data = await res.json();
-    if (!data.models) throw new Error("No models returned");
-    
-    let validModels = data.models
-        .filter(m => m.supportedGenerationMethods?.includes("generateContent"))
-        .map(m => m.name.replace("models/", ""));
+    if (cachedModels && cachedModels.length > 0) return cachedModels;
+    try {
+        const res = await fetch(MODELS_URL);
+        const data = await res.json();
+        if (!data.data) throw new Error("No models returned");
         
-    // PRIORITIZE GEMINI MODELS ONLY. They follow instructions. Gemma leaks thoughts.
-    validModels = validModels.filter(m => m.includes("gemini"));
-        
-    cachedModels = validModels;
-    return cachedModels;
+        // Find all models where the prompt price is exactly "0"
+        let freeModels = data.data
+            .filter(m => m.id && m.pricing && m.pricing.prompt === "0")
+            .map(m => m.id);
+            
+        // Shuffle the models so the AIs don't all use the exact same one
+        cachedModels = freeModels.sort(() => 0.5 - Math.random());
+        return cachedModels.length > 0 ? cachedModels : ["meta-llama/llama-3.3-70b-instruct:free"];
+    } catch (e) {
+        return ["meta-llama/llama-3.3-70b-instruct:free"]; // Safety net
+    }
 }
 
-async function callGemini(persona, chatHistory, modelList, modelIndex = 0) {
+async function callOpenRouter(persona, chatHistory, modelList, modelIndex = 0) {
     if (modelIndex >= modelList.length) throw new Error("All available models failed or rate limited.");
     
     const modelId = modelList[modelIndex];
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
-    
-    const contents = chatHistory.map(msg => ({
-        role: msg.role === "assistant" ? "model" : "user",
-        parts: [{ text: msg.content }]
-    }));
+    const headers = {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://conclave.vercel.app", // OpenRouter requires this
+        "X-Title": "Conclave AI"
+    };
 
-    const res = await fetch(`${apiUrl}?key=${process.env.GEMINI_API_KEY}`, {
+    const messages = [
+        { role: "system", content: persona },
+        ...chatHistory.map(msg => ({
+            role: msg.role,
+            content: msg.content
+        }))
+    ];
+
+    const res = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: headers,
         body: JSON.stringify({
-            systemInstruction: { parts: [{ text: persona }] },
-            contents: contents,
-            // 100 tokens is only enough for 1-2 sentences. It physically cannot write bullet points!
-            generationConfig: { temperature: 0.7, maxOutputTokens: 100 }
+            model: modelId,
+            messages: messages,
+            max_tokens: 100 // Keep it short to prevent thought leaks
         })
     });
 
     const data = await res.json();
     
-    if (!res.ok || data.error || !data.candidates) {
-        console.log(`Model ${modelId} failed. Swapping to next model...`);
-        return callGemini(persona, chatHistory, modelList, modelIndex + 1);
+    // If it fails (rate limit, server error, etc.), swap to the next model!
+    if (!res.ok || data.error || !data.choices || data.choices.length === 0) {
+        console.log(`Model ${modelId} failed. Swapping...`);
+        return callOpenRouter(persona, chatHistory, modelList, modelIndex + 1);
     }
     
-    return data.candidates[0].content.parts[0].text.trim();
+    return data.choices[0].message.content.trim();
 }
 
 module.exports = async (req, res) => {
@@ -76,21 +88,13 @@ module.exports = async (req, res) => {
         const chatHistory = [...history, { role: "user", content: cleanText || message }];
         const modelList = await getModelList();
         
-        // Assign distinct models so they don't all use the exact same one
-        const modelsForAIs = [
-            modelList[0] || modelList[0],
-            modelList[1] || modelList[0],
-            modelList[2] || modelList[0]
-        ];
-
         const responses = [];
         const combinedResponses = [];
 
         const promises = targets.map(async (name, index) => {
             try {
-                // Give each AI a specific model from our list
-                const assignedModel = [modelsForAIs[index]];
-                const text = await callGemini(PERSONAS[name], chatHistory, assignedModel);
+                // Offset the starting index so they use different models if possible
+                const text = await callOpenRouter(PERSONAS[name], chatHistory, modelList, index);
                 responses.push({ name, text });
                 combinedResponses.push(`[${name}]: ${text}`);
             } catch (e) {
