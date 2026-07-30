@@ -1,9 +1,9 @@
 const MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const PERSONAS = {
-    Analyst: "You are The Analyst. Purely logical, focused on data and facts. Be concise. Respond in ONE short sentence.\nCRITICAL INSTRUCTION: You must output your final spoken response on a new line starting exactly with 'RESPONSE: '. Do not include any internal reasoning before or after it.",
-    Creative: "You are The Creative. Optimistic, out-of-the-box thinker. Be concise. Respond in ONE short sentence.\nCRITICAL INSTRUCTION: You must output your final spoken response on a new line starting exactly with 'RESPONSE: '. Do not include any internal reasoning before or after it.",
-    Critic: "You are The Critic. Harsh, cynical, finds flaws. Be concise. Respond in ONE short sentence.\nCRITICAL INSTRUCTION: You must output your final spoken response on a new line starting exactly with 'RESPONSE: '. Do not include any internal reasoning before or after it."
+    Analyst: "You are The Analyst. Purely logical, focused on data and facts. Respond in ONE short sentence.",
+    Creative: "You are The Creative. Optimistic, out-of-the-box thinker. Respond in ONE short sentence.",
+    Critic: "You are The Critic. Harsh, cynical, finds flaws. Respond in ONE short sentence."
 };
 
 let cachedModels = null;
@@ -18,12 +18,8 @@ async function getModelList() {
         .filter(m => m.supportedGenerationMethods?.includes("generateContent"))
         .map(m => m.name.replace("models/", ""));
         
-    // PRIORITIZE GEMINI MODELS! They follow instructions better than Gemma.
-    validModels.sort((a, b) => {
-        if (a.includes("gemini") && !b.includes("gemini")) return -1;
-        if (!a.includes("gemini") && b.includes("gemini")) return 1;
-        return 0;
-    });
+    // PRIORITIZE GEMINI MODELS ONLY. They follow instructions. Gemma leaks thoughts.
+    validModels = validModels.filter(m => m.includes("gemini"));
         
     cachedModels = validModels;
     return cachedModels;
@@ -46,8 +42,8 @@ async function callGemini(persona, chatHistory, modelList, modelIndex = 0) {
         body: JSON.stringify({
             systemInstruction: { parts: [{ text: persona }] },
             contents: contents,
-            // Bumped to 500 so it has room to think, but we will extract only the final response
-            generationConfig: { temperature: 0.7, maxOutputTokens: 500 }
+            // 100 tokens is only enough for 1-2 sentences. It physically cannot write bullet points!
+            generationConfig: { temperature: 0.7, maxOutputTokens: 100 }
         })
     });
 
@@ -58,21 +54,7 @@ async function callGemini(persona, chatHistory, modelList, modelIndex = 0) {
         return callGemini(persona, chatHistory, modelList, modelIndex + 1);
     }
     
-    let fullText = data.candidates[0].content.parts[0].text;
-
-    // IZAROT'S EXTRACTOR: Find "RESPONSE: " and only return what comes after it.
-    const match = fullText.match(/RESPONSE:\s*([\s\S]*)/i);
-    if (match) {
-        return match[1].trim();
-    }
-
-    // Fallback if it ignores the rule: strip bullet points
-    const cleanedText = fullText.split('\n')
-        .filter(line => !line.trim().startsWith('*') && !line.trim().startsWith('-') && !line.trim().startsWith('"'))
-        .join('\n')
-        .trim();
-
-    return cleanedText || fullText;
+    return data.candidates[0].content.parts[0].text.trim();
 }
 
 module.exports = async (req, res) => {
@@ -94,15 +76,21 @@ module.exports = async (req, res) => {
         const chatHistory = [...history, { role: "user", content: cleanText || message }];
         const modelList = await getModelList();
         
-        // Shuffle so they don't all use the exact same model
-        const shuffledModels = [...modelList].sort(() => 0.5 - Math.random());
+        // Assign distinct models so they don't all use the exact same one
+        const modelsForAIs = [
+            modelList[0] || modelList[0],
+            modelList[1] || modelList[0],
+            modelList[2] || modelList[0]
+        ];
 
         const responses = [];
         const combinedResponses = [];
 
-        const promises = targets.map(async (name) => {
+        const promises = targets.map(async (name, index) => {
             try {
-                const text = await callGemini(PERSONAS[name], chatHistory, shuffledModels);
+                // Give each AI a specific model from our list
+                const assignedModel = [modelsForAIs[index]];
+                const text = await callGemini(PERSONAS[name], chatHistory, assignedModel);
                 responses.push({ name, text });
                 combinedResponses.push(`[${name}]: ${text}`);
             } catch (e) {
