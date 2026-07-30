@@ -1,14 +1,14 @@
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 class AIModel {
-    constructor(name, systemPrompt) {
+    constructor(name, persona) {
         this.name = name;
-        this.systemPrompt = systemPrompt;
-        this.modelId = "google/gemini-2.0-flash-exp:free"; // Reliable, fast, free
+        this.persona = persona;
+        this.modelId = "google/gemini-2.0-flash-exp:free"; 
     }
 
-    async run(prompt) {
-        console.log(`[${this.name}] is thinking...`);
+    async run(chatHistory) {
+        console.log(`[${this.name}] is typing...`);
         
         const response = await fetch(API_URL, {
             method: "POST",
@@ -21,8 +21,8 @@ class AIModel {
             body: JSON.stringify({
                 model: this.modelId,
                 messages: [
-                    { role: "system", content: this.systemPrompt },
-                    { role: "user", content: prompt }
+                    { role: "system", content: this.persona },
+                    ...chatHistory // Pass the whole conversation history!
                 ],
             })
         });
@@ -33,7 +33,7 @@ class AIModel {
 
         const data = await response.json();
         const content = data.choices[0].message.content;
-        console.log(`[${this.name}] finished thinking.`);
+        console.log(`[${this.name}]: ${content.substring(0, 100)}...`); // Preview their message
         return content;
     }
 }
