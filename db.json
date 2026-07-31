@@ -43,7 +43,7 @@
         },
         {
           "id": "chat_1785492366349",
-          "name": "hi",
+          "name": "bad",
           "history": [
             {
               "role": "user",
@@ -60,6 +60,14 @@
             {
               "role": "assistant",
               "content": "[Phi-3.5-mini-instruct]: Error: Bad credentials"
+            },
+            {
+              "role": "user",
+              "content": "bad"
+            },
+            {
+              "role": "assistant",
+              "content": "[Phi-3.5-mini-instruct]: Error: Bad credentials"
             }
           ],
           "models": [
@@ -68,7 +76,7 @@
               "nickname": ""
             }
           ],
-          "updatedAt": "2026-07-31T10:12:35.659Z"
+          "updatedAt": "2026-07-31T10:20:48.550Z"
         },
         {
           "id": "chat_1785492656324",
