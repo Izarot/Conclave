@@ -1,3 +1,6 @@
+import { setTimeout } from 'timers/promises';
+export const maxDuration = 60;
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
@@ -46,18 +49,26 @@ export default async function handler(req, res) {
                     throw new Error("Unknown provider");
             }
 
+            // 15-Second Timer per model
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15000);
+
             const apiRes = await fetch(url, {
                 method: "POST",
                 headers: headers,
-                body: JSON.stringify(body)
+                body: JSON.stringify(body),
+                signal: controller.signal
             });
+            clearTimeout(timeout);
 
             const data = await apiRes.json();
             if (!apiRes.ok) {
-                // Extract the exact error message from the provider
                 const errorMsg = data.error?.message || data.detail || data.message || `HTTP ${apiRes.status} Error`;
-                console.error(`🔴 [${provider}] REJECTED:`, errorMsg);
                 throw new Error(errorMsg);
+            }
+            
+            if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+                throw new Error("No response generated (likely blocked by safety filter).");
             }
 
             let text = data.choices[0].message.content.trim();
@@ -73,16 +84,16 @@ export default async function handler(req, res) {
                 }
             }
             
-            // Clean up if the model accidentally includes its name
             const nameRegex = new RegExp(`^\\[?(${displayName})\\]?:\\s*`, 'i');
             text = text.replace(nameRegex, '');
 
             responses.push({ name: displayName, text });
             combinedResponses.push(`[${displayName}]: ${text}`);
         } catch (e) {
-            console.error(`🔴 [${provider}] ERROR:`, e.message);
-            responses.push({ name: displayName, text: `Error: ${e.message}` });
-            combinedResponses.push(`[${displayName}]: Error: ${e.message}`);
+            let errMsg = e.message;
+            if (e.name === 'AbortError') errMsg = "Timed out after 15s.";
+            responses.push({ name: displayName, text: `Error: ${errMsg}` });
+            combinedResponses.push(`[${displayName}]: Error: ${errMsg}`);
         }
     });
 
