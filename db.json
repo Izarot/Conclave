@@ -6,7 +6,7 @@
       "chats": [
         {
           "id": "chat_1785492305949",
-          "name": "hello all",
+          "name": "okay hi",
           "history": [
             {
               "role": "user",
@@ -15,6 +15,14 @@
             {
               "role": "assistant",
               "content": "[CHAT]: Error: Bad credentials\n\n[PHI]: Error: Bad credentials\n\n[MISTRAL]: Error: Bad credentials"
+            },
+            {
+              "role": "user",
+              "content": "okay hi"
+            },
+            {
+              "role": "assistant",
+              "content": "[CHAT]: Error: Bad credentials\n\n[MISTRAL]: Error: Bad credentials\n\n[PHI]: Error: Bad credentials"
             }
           ],
           "models": [
@@ -31,15 +39,23 @@
               "nickname": "PHI"
             }
           ],
-          "updatedAt": "2026-07-31T10:05:59.673Z"
+          "updatedAt": "2026-07-31T10:10:47.450Z"
         },
         {
           "id": "chat_1785492366349",
-          "name": "hello",
+          "name": "hi",
           "history": [
             {
               "role": "user",
               "content": "hello"
+            },
+            {
+              "role": "assistant",
+              "content": "[Phi-3.5-mini-instruct]: Error: Bad credentials"
+            },
+            {
+              "role": "user",
+              "content": "hi"
             },
             {
               "role": "assistant",
@@ -52,7 +68,28 @@
               "nickname": ""
             }
           ],
-          "updatedAt": "2026-07-31T10:06:14.863Z"
+          "updatedAt": "2026-07-31T10:12:35.659Z"
+        },
+        {
+          "id": "chat_1785492656324",
+          "name": "hi all of you how ar",
+          "history": [
+            {
+              "role": "user",
+              "content": "hi all of you how are you not alive on this planet"
+            },
+            {
+              "role": "assistant",
+              "content": "[gpt-4o]: Error: Bad credentials"
+            }
+          ],
+          "models": [
+            {
+              "id": "gpt-4o",
+              "nickname": ""
+            }
+          ],
+          "updatedAt": "2026-07-31T10:11:13.176Z"
         }
       ]
     }

@@ -1,8 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-// ... rest of the code
-
-const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const app = express();
@@ -119,4 +116,6 @@ app.post('/api/chat', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 Conclave Server running at http://localhost:${PORT}`);
+    // DEBUG: Print the first 10 characters of the token to prove it's loaded
+    console.log("DEBUG: GITHUB_TOKEN loaded as:", process.env.GITHUB_TOKEN ? process.env.GITHUB_TOKEN.substring(0, 10) + "..." : "UNDEFINED");
 });
