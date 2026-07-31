@@ -1,24 +1,50 @@
 export default async function handler(req, res) {
     let allModels = [];
 
-    // 1. THE PREMIUM MODELS (Free via GitHub Models, NVIDIA, and Z.AI)
-    allModels.push(
-        { id: "github:gpt-4o", name: "⭐ [GitHub] GPT-4o" },
-        { id: "github:gpt-4o-mini", name: "⭐ [GitHub] GPT-4o mini" },
-        { id: "github:Mistral-large", name: "⭐ [GitHub] Mistral Large" },
-        { id: "github:Llama-3.3-70B-Instruct", name: "⭐ [GitHub] Llama 3.3 70B" },
-        { id: "nvidia:meta/llama-3.1-405b-instruct", name: "⭐ [NVIDIA] Llama 3.1 405B" },
-        { id: "nvidia:meta/llama-3.3-70b-instruct", name: "⭐ [NVIDIA] Llama 3.3 70B" },
-        { id: "zai:glm-4-flash", name: "⭐ [Z.AI] GLM-4 Flash" }
-    );
-
-    // Fetch Gemini and OpenRouter in parallel
-    const [gemRes, orRes] = await Promise.allSettled([
-        fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`).then(r => r.json()),
-        fetch("https://openrouter.ai/api/v1/models").then(r => r.json())
+    // Fetch NVIDIA, Z.AI, OpenRouter, and Google in parallel
+    const [nvRes, zaiRes, orRes, gemRes] = await Promise.allSettled([
+        // 1. NVIDIA NIM (Dynamic fetch)
+        fetch("https://integrate.api.nvidia.com/v1/models", {
+            headers: { "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}` }
+        }).then(r => r.json()),
+        
+        // 2. Z.AI (Dynamic fetch)
+        fetch("https://open.bigmodel.cn/api/paas/v4/models", {
+            headers: { "Authorization": `Bearer ${process.env.ZAI_API_KEY}` }
+        }).then(r => r.json()),
+        
+        // 3. OpenRouter (Dynamic fetch)
+        fetch("https://openrouter.ai/api/v1/models").then(r => r.json()),
+        
+        // 4. Google Gemini (Dynamic fetch)
+        fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`).then(r => r.json())
     ]);
 
-    // 2. Google Gemini (Dynamic + Ultimate Blacklist)
+    // Process NVIDIA
+    if (nvRes.status === 'fulfilled' && nvRes.value.data) {
+        const nvModels = nvRes.value.data
+            .filter(m => m.id)
+            .map(m => ({ id: `nvidia:${m.id}`, name: `[NVIDIA] ${m.id.split('/').pop()}` }));
+        allModels.push(...nvModels);
+    }
+
+    // Process Z.AI
+    if (zaiRes.status === 'fulfilled' && zaiRes.value.data) {
+        const zaiModels = zaiRes.value.data
+            .filter(m => m.id)
+            .map(m => ({ id: `zai:${m.id}`, name: `[Z.AI] ${m.id}` }));
+        allModels.push(...zaiModels);
+    }
+
+    // Process OpenRouter (Free models only)
+    if (orRes.status === 'fulfilled' && orRes.value.data) {
+        const orModels = orRes.value.data
+            .filter(m => m.id && m.pricing && m.pricing.prompt === "0")
+            .map(m => ({ id: `openrouter:${m.id}`, name: `[OpenRouter] ${m.name.split('(')[0].trim()}` }));
+        allModels.push(...orModels);
+    }
+
+    // Process Google Gemini (Dynamic + Ultimate Blacklist)
     if (gemRes.status === 'fulfilled' && gemRes.value.models) {
         const gemModels = gemRes.value.models
             .filter(m => {
@@ -36,14 +62,6 @@ export default async function handler(req, res) {
             })
             .map(m => ({ id: `gemini:${m.name.replace('models/', '')}`, name: `[Google] ${m.displayName || m.name}` }));
         allModels.push(...gemModels);
-    }
-
-    // 3. OpenRouter (Dynamic free models)
-    if (orRes.status === 'fulfilled' && orRes.value.data) {
-        const orModels = orRes.value.data
-            .filter(m => m.id && m.pricing && m.pricing.prompt === "0")
-            .map(m => ({ id: `openrouter:${m.id}`, name: `[OpenRouter] ${m.name.split('(')[0].trim()}` }));
-        allModels.push(...orModels);
     }
 
     res.status(200).json(allModels);
