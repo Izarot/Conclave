@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conclave</title>
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: #fff; display: flex; height: 100vh; }
+        #sidebar { width: 250px; background: #11111a; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        #chat-area { flex: 1; display: flex; flex-direction: column; }
+        .p-10 { padding: 10px; }
+        .btn { background: #00ffcc; color: #000; border: none; padding: 10px; width: 100%; cursor: pointer; font-weight: bold; border-radius: 5px; margin-top: 5px; }
+        .btn-sec { background: #1a1a2e; color: #fff; border: 1px solid #444; }
+        input, select { width: 100%; padding: 10px; margin-top: 5px; background: #1a1a2e; border: 1px solid #444; color: #fff; border-radius: 5px; box-sizing: border-box; }
+        #chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .msg { padding: 10px 15px; border-radius: 15px; max-width: 80%; white-space: pre-wrap; }
+        .user { align-self: flex-end; background: #00ffcc; color: #000; }
+        .ai { align-self: flex-start; background: #1a1a2e; border: 1px solid #444; }
+        .name { font-size: 0.8em; font-weight: bold; margin-bottom: 4px; display: block; }
+        #models-bar { padding: 10px; background: #11111a; border-bottom: 1px solid #333; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .chip { background: #333; padding: 5px 10px; border-radius: 15px; font-size: 0.8em; display: flex; align-items: center; gap: 5px; }
+        .chip span { cursor: pointer; color: #ff3333; font-weight: bold; }
+        #auth-box { width: 300px; margin: auto; text-align: center; background: #11111a; padding: 20px; border-radius: 10px; border: 1px solid #333; }
+        #input-area { display: flex; padding: 20px; background: #11111a; border-top: 1px solid #333; gap: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar" class="p-10">
+    <h3>Conclave</h3>
+    <button class="btn btn-sec" onclick="newChat()">+ New Chat</button>
+    <div id="chat-list" style="flex:1; margin-top:10px; overflow-y:auto;"></div>
+    <button class="btn btn-sec" onclick="logout()" id="logout-btn" style="display:none;">Logout</button>
+</div>
+
+<div id="chat-area">
+    <div id="auth-container" style="display:flex; flex:1; align-items:center; justify-content:center;">
+        <div id="auth-box">
+            <h2>Welcome</h2>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button class="btn" onclick="login()">Login</button>
+            <button class="btn btn-sec" onclick="register()">Register</button>
+        </div>
+    </div>
+
+    <div id="app-container" style="display:none; flex-direction:column; flex:1;">
+        <div id="models-bar">
+            <select id="model-select">
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="Mistral-large">Mistral Large</option>
+                <option value="Llama-3.3-70B-Instruct">Llama 3.3 70B</option>
+                <option value="Phi-3.5-mini-instruct">Phi 3.5 Mini</option>
+            </select>
+            <input type="text" id="nickname-input" placeholder="Nickname (optional)" style="width: 150px;">
+            <button class="btn" style="width:auto; margin-top:0;" onclick="addModel()">Add Model</button>
+            <div id="active-models" style="display:flex; gap:5px;"></div>
+        </div>
+
+        <div id="chat-box"></div>
+        
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Send a message..." autocomplete="off" style="flex:1;">
+            <button class="btn" style="width:auto; margin-top:0;" onclick="sendMessage()">SEND</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let activeModels = [];
+    let history = [];
+    let currentChatId = null;
+
+    function renderActiveModels() {
+        const container = document.getElementById('active-models');
+        container.innerHTML = '';
+        activeModels.forEach((m, index) => {
+            const chip = document.createElement('div');
+            chip.className = 'chip';
+            chip.innerHTML = `${m.nickname || m.id} <span onclick="removeModel(${index})">x</span>`;
+            container.appendChild(chip);
+        });
+    }
+
+    function addModel() {
+        const id = document.getElementById('model-select').value;
+        const nickname = document.getElementById('nickname-input').value.trim();
+        activeModels.push({ id, nickname });
+        document.getElementById('nickname-input').value = '';
+        renderActiveModels();
+    }
+
+    function removeModel(index) {
+        activeModels.splice(index, 1);
+        renderActiveModels();
+    }
+
+    function addMessage(sender, text, name = '') {
+        const chatBox = document.getElementById('chat-box');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `msg ${sender}`;
+        if (name) {
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'name';
+            nameSpan.innerText = name;
+            msgDiv.appendChild(nameSpan);
+        }
+        const textSpan = document.createElement('span');
+        textSpan.innerText = text;
+        msgDiv.appendChild(textSpan);
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function sendMessage() {
+        if (activeModels.length === 0) return alert("Add at least one model first!");
+        const input = document.getElementById('user-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        addMessage('user', text);
+        input.value = '';
+
+        try {
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text, history: history, models: activeModels })
+            });
+            const data = await res.json();
+            if (data.responses) {
+                data.responses.forEach(r => addMessage('ai', r.text, r.name));
+                history = data.history;
+                saveChat(text); // Save after sending
+            } else {
+                addMessage('ai', 'Error: ' + data.error, 'System');
+            }
+        } catch (e) {
+            addMessage('ai', 'Network Error.', 'System');
+        }
+    }
+
+    // --- AUTH & SAVING ---
+    async function register() {
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+        const res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p}) });
+        const data = await res.json();
+        if(data.success) login(); else alert(data.error);
+    }
+
+    async function login() {
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+        const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p}) });
+        const data = await res.json();
+        if(data.success) {
+            currentUser = data.username;
+            document.getElementById('auth-container').style.display = 'none';
+            document.getElementById('app-container').style.display = 'flex';
+            document.getElementById('logout-btn').style.display = 'block';
+            renderChatList(data.chats);
+        } else {
+            alert(data.error);
+        }
+    }
+
+    function logout() {
+        currentUser = null;
+        location.reload();
+    }
+
+    function newChat() {
+        currentChatId = 'chat_' + Date.now();
+        history = [];
+        activeModels = [];
+        document.getElementById('chat-box').innerHTML = '';
+        renderActiveModels();
+    }
+
+    async function saveChat(lastMsg) {
+        if(!currentUser) return;
+        await fetch('/api/save-chat', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                username: currentUser,
+                chatId: currentChatId,
+                chatName: lastMsg.substring(0, 20),
+                history: history,
+                models: activeModels
+            })
+        });
+        // Refresh sidebar
+        const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:currentUser, password:'skip'}) }); // hacky refresh, ignore password check fail, we just want the list
+    }
+
+    function renderChatList(chats) {
+        const list = document.getElementById('chat-list');
+        list.innerHTML = '';
+        chats.forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-sec';
+            btn.innerText = c.name;
+            btn.onclick = () => loadChat(c);
+            list.appendChild(btn);
+        });
+    }
+
+    function loadChat(chat) {
+        currentChatId = chat.id;
+        history = chat.history;
+        activeModels = chat.models;
+        document.getElementById('chat-box').innerHTML = '';
+        renderActiveModels();
+        // Render history
+        history.forEach(msg => {
+            if(msg.role === 'user') addMessage('user', msg.content);
+            else {
+                // Parse combined AI responses
+                const parts = msg.content.split('\n\n');
+                parts.forEach(p => {
+                    const match = p.match(/\[(.*?)\]: (.*)/s);
+                    if(match) addMessage('ai', match[2], match[1]);
+                });
+            }
+        });
+    }
+
+    document.getElementById('user-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+</script>
+</body>
+</html>
