@@ -4,7 +4,11 @@ export const providerName = "cloudflare";
 export async function getModels() {
     const accountId = process.env.CF_ACCOUNT_ID;
     const apiToken = process.env.CF_API_TOKEN;
-    if (!accountId || !apiToken) return [];
+    
+    if (!accountId || !apiToken) {
+        console.error("Cloudflare Adapter: Missing CF_ACCOUNT_ID or CF_API_TOKEN in env vars.");
+        return [];
+    }
 
     try {
         const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/models`, {
@@ -15,12 +19,20 @@ export async function getModels() {
         });
         
         const contentType = res.headers.get("content-type") || "";
-        if (!contentType.includes("application/json")) return [];
+        if (!contentType.includes("application/json")) {
+            console.error("Cloudflare returned HTML instead of JSON.");
+            return [];
+        }
 
         const data = await res.json();
         
+        // If Cloudflare rejects the token, it returns success: false
+        if (!data.success) {
+            console.error("Cloudflare API Error:", JSON.stringify(data.errors));
+            return [];
+        }
+        
         if (data && data.result) {
-            // Filter for text generation models only
             return data.result
                 .filter(m => m.task?.type === "text-generation")
                 .map(m => ({
