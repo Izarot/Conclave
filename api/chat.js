@@ -26,14 +26,10 @@ export default async function handler(req, res) {
             let url, headers, body;
 
             switch (provider) {
-                case 'deepinfra':
-                    url = "https://api.deepinfra.com/v1/openai/chat/completions";
-                    headers = { "Authorization": `Bearer ${process.env.DEEPINFRA_API_KEY}`, "Content-Type": "application/json" };
-                    body = { model: actualModelId, messages: chatHistory, max_tokens: 300 };
-                    break;
-                case 'hf':
-                    url = "https://api-inference.huggingface.co/v1/chat/completions";
-                    headers = { "Authorization": `Bearer ${process.env.HF_TOKEN}`, "Content-Type": "application/json" };
+                case 'gemini':
+                    // Google's OpenAI-compatible endpoint!
+                    url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+                    headers = { "Authorization": `Bearer ${process.env.GEMINI_API_KEY}`, "Content-Type": "application/json" };
                     body = { model: actualModelId, messages: chatHistory, max_tokens: 300 };
                     break;
                 case 'openrouter':
@@ -58,15 +54,7 @@ export default async function handler(req, res) {
 
             const data = await apiRes.json();
             if (!apiRes.ok) {
-                // FIXED: Safely stringify the error object so we never see [object Object] again
-                let errorMsg;
-                if (data.error) {
-                    errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
-                } else if (data.detail) {
-                    errorMsg = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
-                } else {
-                    errorMsg = `HTTP ${apiRes.status} Error`;
-                }
+                let errorMsg = data.error?.message || data.detail || `HTTP ${apiRes.status} Error`;
                 throw new Error(errorMsg);
             }
             
@@ -76,6 +64,7 @@ export default async function handler(req, res) {
 
             let text = data.choices[0].message.content.trim();
 
+            // Aggressive Thought Slicer
             const thoughtMarkers = ["We need to", "The user", "I should", "Okay, the user", "Hmm,", "Let's", "I will output"];
             for (const marker of thoughtMarkers) {
                 if (text.startsWith(marker)) {
