@@ -1,0 +1,60 @@
+{
+  "users": [
+    {
+      "username": "Izarot",
+      "password": "qwerty",
+      "chats": [
+        {
+          "id": "chat_1785492305949",
+          "name": "hello all",
+          "history": [
+            {
+              "role": "user",
+              "content": "hello all"
+            },
+            {
+              "role": "assistant",
+              "content": "[CHAT]: Error: Bad credentials\n\n[PHI]: Error: Bad credentials\n\n[MISTRAL]: Error: Bad credentials"
+            }
+          ],
+          "models": [
+            {
+              "id": "gpt-4o",
+              "nickname": "CHAT"
+            },
+            {
+              "id": "Mistral-large",
+              "nickname": "MISTRAL"
+            },
+            {
+              "id": "Phi-3.5-mini-instruct",
+              "nickname": "PHI"
+            }
+          ],
+          "updatedAt": "2026-07-31T10:05:59.673Z"
+        },
+        {
+          "id": "chat_1785492366349",
+          "name": "hello",
+          "history": [
+            {
+              "role": "user",
+              "content": "hello"
+            },
+            {
+              "role": "assistant",
+              "content": "[Phi-3.5-mini-instruct]: Error: Bad credentials"
+            }
+          ],
+          "models": [
+            {
+              "id": "Phi-3.5-mini-instruct",
+              "nickname": ""
+            }
+          ],
+          "updatedAt": "2026-07-31T10:06:14.863Z"
+        }
+      ]
+    }
+  ]
+}
