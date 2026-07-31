@@ -31,16 +31,6 @@ export default async function handler(req, res) {
                     headers = { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`, "Content-Type": "application/json" };
                     body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
                     break;
-                case 'nvidia':
-                    url = "https://integrate.api.nvidia.com/v1/chat/completions";
-                    headers = { "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}`, "Content-Type": "application/json" };
-                    body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
-                    break;
-                case 'zai':
-                    url = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
-                    headers = { "Authorization": `Bearer ${process.env.ZAI_API_KEY}`, "Content-Type": "application/json" };
-                    body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
-                    break;
                 case 'gemini':
                     url = `https://generativelanguage.googleapis.com/v1beta/models/${actualModelId}:generateContent?key=${process.env.GEMINI_API_KEY}`;
                     headers = { "Content-Type": "application/json" };
@@ -79,7 +69,6 @@ export default async function handler(req, res) {
             }
             
             let text;
-            // NVIDIA, Z.AI, GitHub, and OpenRouter all use the OpenAI format!
             if (provider === 'gemini') {
                 if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
                     throw new Error("No response generated (likely blocked by safety filter).");
@@ -92,15 +81,22 @@ export default async function handler(req, res) {
                 text = data.choices[0].message.content.trim();
             }
 
-            // Aggressive Thought Slicer
-            const thoughtMarkers = ["We need to", "The user", "I should", "Okay, the user", "Hmm,", "Let's", "I will output"];
-            for (const marker of thoughtMarkers) {
-                if (text.startsWith(marker)) {
-                    const answerStart = text.lastIndexOf('\n');
-                    if (answerStart > 0 && answerStart < text.length - 1) {
-                        text = text.substring(answerStart).trim();
-                    }
-                }
+            // UPGRADED THOUGHT SLICER (Catches *, -, #, and numbers)
+            const lines = text.split('\n');
+            const cleanLines = lines.filter(line => {
+                const trimmed = line.trim();
+                return !trimmed.startsWith('*') && 
+                       !trimmed.startsWith('-') && 
+                       !trimmed.startsWith('#') && 
+                       !trimmed.match(/^\d+\.\s/) && // Catches "1. "
+                       !trimmed.startsWith('"');
+            });
+            
+            // If we filtered out more than half the text, it was probably a thought leak, so take the last paragraph.
+            if (cleanLines.length < lines.length / 2) {
+                text = cleanLines.join('\n').trim() || lines[lines.length - 1].trim();
+            } else {
+                text = cleanLines.join('\n').trim();
             }
             
             const nameRegex = new RegExp(`^\\[?(${displayName})\\]?:\\s*`, 'i');
