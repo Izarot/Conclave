@@ -1,23 +1,71 @@
+export const maxDuration = 60; // Allow time for dynamic model testing
+
 export default async function handler(req, res) {
     let allModels = [];
 
-    // 1. GitHub Models (The Heavy Hitters: GPT-4o, Mistral, Llama 3.3)
-    // These are hardcoded because GitHub doesn't have a public /models list endpoint,
-    // but these IDs are guaranteed to work and never deprecate.
-    allModels.push(
-        { id: "github:gpt-4o", name: "⭐ [GitHub] GPT-4o" },
-        { id: "github:gpt-4o-mini", name: "⭐ [GitHub] GPT-4o mini" },
-        { id: "github:Mistral-large", name: "⭐ [GitHub] Mistral Large" },
-        { id: "github:Phi-3.5-mini-instruct", name: "⭐ [GitHub] Phi 3.5 Mini" }
-    );
-
-    // Fetch Gemini and OpenRouter in parallel
-    const [gemRes, orRes] = await Promise.allSettled([
-        fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`).then(r => r.json()),
-        fetch("https://openrouter.ai/api/v1/models").then(r => r.json())
+    // 1. Fetch all 4 providers dynamically in parallel!
+    const [ghRes, nvRes, orRes, gemRes] = await Promise.allSettled([
+        fetch("https://models.inference.ai.azure.com/models?api-version=2024-05-01-preview", {
+            headers: { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}` }
+        }).then(r => r.json()),
+        
+        fetch("https://integrate.api.nvidia.com/v1/models", {
+            headers: { "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}` }
+        }).then(r => r.json()),
+        
+        fetch("https://openrouter.ai/api/v1/models").then(r => r.json()),
+        
+        fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`).then(r => r.json())
     ]);
 
-    // 2. Google Gemini (Dynamic + Ultimate Blacklist)
+    // 2. Process GitHub Models (Dynamic)
+    if (ghRes.status === 'fulfilled' && (ghRes.value.data || ghRes.value.value)) {
+        const ghData = ghRes.value.data || ghRes.value.value;
+        const ghModels = ghData
+            .filter(m => m.id) // Grab whatever GitHub says is available
+            .map(m => ({ id: `github:${m.id}`, name: `⭐ [GitHub] ${m.name || m.id}` }));
+        allModels.push(...ghModels);
+    }
+
+    // 3. Process NVIDIA NIM (Dynamic + Test ALL)
+    if (nvRes.status === 'fulfilled' && nvRes.value.data) {
+        const nvCandidateIds = nvRes.value.data.map(m => m.id);
+
+        const testNvidiaModel = async (modelId) => {
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 4000);
+                const testRes = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ model: modelId, messages: [{ role: "user", content: "hi" }], max_tokens: 1 }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeout);
+                const testData = await testRes.json();
+                if (testRes.ok && testData.choices) {
+                    return { id: `nvidia:${modelId}`, name: `[NVIDIA] ${modelId.split('/').pop()}` };
+                }
+                return null;
+            } catch (e) {
+                return null;
+            }
+        };
+
+        const nvidiaResults = await Promise.all(nvCandidateIds.map(id => testNvidiaModel(id)));
+        const activeNvidiaModels = nvidiaResults.filter(m => m !== null);
+        allModels.push(...activeNvidiaModels);
+    }
+
+    // 4. Process OpenRouter (Dynamic, free models only)
+    if (orRes.status === 'fulfilled' && orRes.value.data) {
+        const orModels = orRes.value.data
+            .filter(m => m.id && m.pricing && m.pricing.prompt === "0")
+            .map(m => ({ id: `openrouter:${m.id}`, name: `[OpenRouter] ${m.name.split('(')[0].trim()}` }));
+        allModels.push(...orModels);
+    }
+
+    // 5. Process Google Gemini (Dynamic + Blacklist)
     if (gemRes.status === 'fulfilled' && gemRes.value.models) {
         const gemModels = gemRes.value.models
             .filter(m => {
@@ -35,14 +83,6 @@ export default async function handler(req, res) {
             })
             .map(m => ({ id: `gemini:${m.name.replace('models/', '')}`, name: `[Google] ${m.displayName || m.name}` }));
         allModels.push(...gemModels);
-    }
-
-    // 3. OpenRouter (Dynamic free models)
-    if (orRes.status === 'fulfilled' && orRes.value.data) {
-        const orModels = orRes.value.data
-            .filter(m => m.id && m.pricing && m.pricing.prompt === "0")
-            .map(m => ({ id: `openrouter:${m.id}`, name: `[OpenRouter] ${m.name.split('(')[0].trim()}` }));
-        allModels.push(...orModels);
     }
 
     res.status(200).json(allModels);
