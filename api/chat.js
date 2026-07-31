@@ -26,23 +26,36 @@ export default async function handler(req, res) {
             let url, headers, body;
 
             switch (provider) {
+                case 'github':
+                    url = "https://models.inference.ai.azure.com/chat/completions?api-version=2024-05-01-preview";
+                    headers = { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`, "Content-Type": "application/json" };
+                    body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
+                    break;
+                case 'nvidia':
+                    url = "https://integrate.api.nvidia.com/v1/chat/completions";
+                    headers = { "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}`, "Content-Type": "application/json" };
+                    body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
+                    break;
+                case 'zai':
+                    url = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
+                    headers = { "Authorization": `Bearer ${process.env.ZAI_API_KEY}`, "Content-Type": "application/json" };
+                    body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
+                    break;
                 case 'gemini':
-                    // FIXED: Using Google's native generateContent endpoint to stop 404s
                     url = `https://generativelanguage.googleapis.com/v1beta/models/${actualModelId}:generateContent?key=${process.env.GEMINI_API_KEY}`;
                     headers = { "Content-Type": "application/json" };
-                    // Google requires converting OpenAI history to their specific format
                     body = {
                         contents: chatHistory.map(msg => ({
                             role: msg.role === "assistant" ? "model" : "user",
                             parts: [{ text: msg.content }]
                         })),
-                        generationConfig: { maxOutputTokens: 300, temperature: 0.7 }
+                        generationConfig: { maxOutputTokens: 500, temperature: 0.7 }
                     };
                     break;
                 case 'openrouter':
                     url = "https://openrouter.ai/api/v1/chat/completions";
                     headers = { "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`, "Content-Type": "application/json", "HTTP-Referer": "https://vercel.app", "X-Title": "Conclave" };
-                    body = { model: actualModelId, messages: chatHistory, max_tokens: 300 };
+                    body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
                     break;
                 default:
                     throw new Error("Unknown provider");
@@ -66,7 +79,7 @@ export default async function handler(req, res) {
             }
             
             let text;
-            // Extract text differently based on Google vs OpenAI format
+            // NVIDIA, Z.AI, GitHub, and OpenRouter all use the OpenAI format!
             if (provider === 'gemini') {
                 if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
                     throw new Error("No response generated (likely blocked by safety filter).");
