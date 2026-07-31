@@ -1,35 +1,44 @@
 export default async function handler(req, res) {
     let allModels = [];
 
+    // 1. THE PREMIUM MODELS (Free via GitHub Models, NVIDIA, and Z.AI)
+    allModels.push(
+        { id: "github:gpt-4o", name: "⭐ [GitHub] GPT-4o" },
+        { id: "github:gpt-4o-mini", name: "⭐ [GitHub] GPT-4o mini" },
+        { id: "github:Mistral-large", name: "⭐ [GitHub] Mistral Large" },
+        { id: "github:Llama-3.3-70B-Instruct", name: "⭐ [GitHub] Llama 3.3 70B" },
+        { id: "nvidia:meta/llama-3.1-405b-instruct", name: "⭐ [NVIDIA] Llama 3.1 405B" },
+        { id: "nvidia:meta/llama-3.3-70b-instruct", name: "⭐ [NVIDIA] Llama 3.3 70B" },
+        { id: "zai:glm-4-flash", name: "⭐ [Z.AI] GLM-4 Flash" }
+    );
+
+    // Fetch Gemini and OpenRouter in parallel
     const [gemRes, orRes] = await Promise.allSettled([
         fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`).then(r => r.json()),
         fetch("https://openrouter.ai/api/v1/models").then(r => r.json())
     ]);
 
-    // 1. Google Gemini (Dynamic + Ultimate Blacklist)
+    // 2. Google Gemini (Dynamic + Ultimate Blacklist)
     if (gemRes.status === 'fulfilled' && gemRes.value.models) {
         const gemModels = gemRes.value.models
             .filter(m => {
                 if (!m.supportedGenerationMethods?.includes("generateContent")) return false;
                 const name = m.name.toLowerCase();
-                
-                // The Ultimate Blacklist: Kill all restricted/broken/experimental models
                 if (name.includes("pro")) return false; 
-                if (name.includes("2.0") || name.includes("2.5")) return false; // Kill 2.0 and 2.5 (deprecated or limit: 0)
+                if (name.includes("2.0") || name.includes("2.5")) return false; 
                 if (name.includes("robotics") || name.includes("computer-use")) return false;
                 if (name.includes("omni") || name.includes("antigravity") || name.includes("deep-research")) return false;
                 if (name.includes("tts") || name.includes("image") || name.includes("audio") || name.includes("vision")) return false;
                 if (name.includes("lyria") || name.includes("aqa") || name.includes("embedding")) return false;
                 if (name.includes("gemma")) return false; 
-                if (name.includes("3.5-flash") && !name.includes("lite")) return false; // Keep 3.5-flash-lite, kill 3.5-flash
-                
+                if (name.includes("3.5-flash") && !name.includes("lite")) return false; 
                 return true;
             })
             .map(m => ({ id: `gemini:${m.name.replace('models/', '')}`, name: `[Google] ${m.displayName || m.name}` }));
         allModels.push(...gemModels);
     }
 
-    // 2. OpenRouter (Dynamic fetch, free models only)
+    // 3. OpenRouter (Dynamic free models)
     if (orRes.status === 'fulfilled' && orRes.value.data) {
         const orModels = orRes.value.data
             .filter(m => m.id && m.pricing && m.pricing.prompt === "0")
