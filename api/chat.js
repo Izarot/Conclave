@@ -1,89 +1,133 @@
-export const maxDuration = 60; // Allow time for dynamic model testing
+import { setTimeout } from 'timers/promises';
+
+// Tells Vercel to allow this function up to 60 seconds before timing out
+export const maxDuration = 60;
 
 export default async function handler(req, res) {
-    let allModels = [];
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-    // 1. Fetch all 4 providers dynamically in parallel!
-    const [ghRes, nvRes, orRes, gemRes] = await Promise.allSettled([
-        fetch("https://models.inference.ai.azure.com/models?api-version=2024-05-01-preview", {
-            headers: { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}` }
-        }).then(r => r.json()),
-        
-        fetch("https://integrate.api.nvidia.com/v1/models", {
-            headers: { "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}` }
-        }).then(r => r.json()),
-        
-        fetch("https://openrouter.ai/api/v1/models").then(r => r.json()),
-        
-        fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`).then(r => r.json())
-    ]);
+    const { message, history, models } = req.body;
+    if (!models || models.length === 0) return res.status(400).json({ error: "No models selected" });
 
-    // 2. Process GitHub Models (Dynamic)
-    if (ghRes.status === 'fulfilled' && (ghRes.value.data || ghRes.value.value)) {
-        const ghData = ghRes.value.data || ghRes.value.value;
-        const ghModels = ghData
-            .filter(m => m.id) // Grab whatever GitHub says is available
-            .map(m => ({ id: `github:${m.id}`, name: `⭐ [GitHub] ${m.name || m.id}` }));
-        allModels.push(...ghModels);
-    }
+    const systemPrompt = { 
+        role: "system", 
+        content: "You are an AI assistant in a group chat. Answer the user directly. CRITICAL RULE: Do NOT output your internal reasoning, thought process, or planning. Output ONLY your final response." 
+    };
 
-    // 3. Process NVIDIA NIM (Dynamic + Test ALL)
-    if (nvRes.status === 'fulfilled' && nvRes.value.data) {
-        const nvCandidateIds = nvRes.value.data.map(m => m.id);
+    const chatHistory = [systemPrompt, ...history, { role: "user", content: message }];
+    const responses = [];
+    const combinedResponses = [];
 
-        const testNvidiaModel = async (modelId) => {
-            try {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 4000);
-                const testRes = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ model: modelId, messages: [{ role: "user", content: "hi" }], max_tokens: 1 }),
-                    signal: controller.signal
-                });
-                clearTimeout(timeout);
-                const testData = await testRes.json();
-                if (testRes.ok && testData.choices) {
-                    return { id: `nvidia:${modelId}`, name: `[NVIDIA] ${modelId.split('/').pop()}` };
-                }
-                return null;
-            } catch (e) {
-                return null;
+    const promises = models.map(async (modelObj) => {
+        const displayName = modelObj.nickname || modelObj.id;
+        try {
+            const [provider, ...rest] = modelObj.id.split(':');
+            const actualModelId = rest.join(':');
+            
+            let url, headers, body;
+
+            switch (provider) {
+                case 'github':
+                    url = "https://models.inference.ai.azure.com/chat/completions?api-version=2024-05-01-preview";
+                    headers = { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`, "Content-Type": "application/json" };
+                    body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
+                    break;
+                case 'nvidia':
+                    url = "https://integrate.api.nvidia.com/v1/chat/completions";
+                    headers = { "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}`, "Content-Type": "application/json" };
+                    body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
+                    break;
+                case 'gemini':
+                    url = `https://generativelanguage.googleapis.com/v1beta/models/${actualModelId}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+                    headers = { "Content-Type": "application/json" };
+                    body = {
+                        contents: chatHistory.map(msg => ({
+                            role: msg.role === "assistant" ? "model" : "user",
+                            parts: [{ text: msg.content }]
+                        })),
+                        generationConfig: { maxOutputTokens: 500, temperature: 0.7 }
+                    };
+                    break;
+                case 'openrouter':
+                    url = "https://openrouter.ai/api/v1/chat/completions";
+                    headers = { "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`, "Content-Type": "application/json", "HTTP-Referer": "https://vercel.app", "X-Title": "Conclave" };
+                    body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
+                    break;
+                default:
+                    throw new Error("Unknown provider");
             }
-        };
 
-        const nvidiaResults = await Promise.all(nvCandidateIds.map(id => testNvidiaModel(id)));
-        const activeNvidiaModels = nvidiaResults.filter(m => m !== null);
-        allModels.push(...activeNvidiaModels);
-    }
+            // 15-second timeout per model so slow models don't crash the chat
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15000);
 
-    // 4. Process OpenRouter (Dynamic, free models only)
-    if (orRes.status === 'fulfilled' && orRes.value.data) {
-        const orModels = orRes.value.data
-            .filter(m => m.id && m.pricing && m.pricing.prompt === "0")
-            .map(m => ({ id: `openrouter:${m.id}`, name: `[OpenRouter] ${m.name.split('(')[0].trim()}` }));
-        allModels.push(...orModels);
-    }
+            const apiRes = await fetch(url, {
+                method: "POST",
+                headers: headers,
+                body: JSON.stringify(body),
+                signal: controller.signal
+            });
+            clearTimeout(timeout);
 
-    // 5. Process Google Gemini (Dynamic + Blacklist)
-    if (gemRes.status === 'fulfilled' && gemRes.value.models) {
-        const gemModels = gemRes.value.models
-            .filter(m => {
-                if (!m.supportedGenerationMethods?.includes("generateContent")) return false;
-                const name = m.name.toLowerCase();
-                if (name.includes("pro")) return false; 
-                if (name.includes("2.0") || name.includes("2.5")) return false; 
-                if (name.includes("robotics") || name.includes("computer-use")) return false;
-                if (name.includes("omni") || name.includes("antigravity") || name.includes("deep-research")) return false;
-                if (name.includes("tts") || name.includes("image") || name.includes("audio") || name.includes("vision")) return false;
-                if (name.includes("lyria") || name.includes("aqa") || name.includes("embedding")) return false;
-                if (name.includes("gemma")) return false; 
-                if (name.includes("3.5-flash") && !name.includes("lite")) return false; 
-                return true;
-            })
-            .map(m => ({ id: `gemini:${m.name.replace('models/', '')}`, name: `[Google] ${m.displayName || m.name}` }));
-        allModels.push(...gemModels);
-    }
+            const data = await apiRes.json();
+            
+            // Safely extract the error message if the API rejects the request
+            if (!apiRes.ok) {
+                let errorMsg = data.error?.message || data.detail || `HTTP ${apiRes.status} Error`;
+                throw new Error(errorMsg);
+            }
+            
+            let text;
+            // Extract text differently based on Google vs OpenAI format
+            if (provider === 'gemini') {
+                if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                    throw new Error("No response generated (likely blocked by safety filter).");
+                }
+                text = data.candidates[0].content.parts[0].text.trim();
+            } else {
+                if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+                    throw new Error("No response generated (likely blocked by safety filter).");
+                }
+                text = data.choices[0].message.content.trim();
+            }
 
-    res.status(200).json(allModels);
+            // UPGRADED THOUGHT SLICER (Catches *, -, #, and numbers like "1. ")
+            const lines = text.split('\n');
+            const cleanLines = lines.filter(line => {
+                const trimmed = line.trim();
+                return !trimmed.startsWith('*') && 
+                       !trimmed.startsWith('-') && 
+                       !trimmed.startsWith('#') && 
+                       !trimmed.match(/^\d+\.\s/) && 
+                       !trimmed.startsWith('"');
+            });
+            
+            // If we filtered out more than half the text, it was a thought leak, so take the last paragraph
+            if (cleanLines.length < lines.length / 2) {
+                text = cleanLines.join('\n').trim() || lines[lines.length - 1].trim();
+            } else {
+                text = cleanLines.join('\n').trim();
+            }
+            
+            // Clean up if the model accidentally includes its name at the start
+            const nameRegex = new RegExp(`^\\[?(${displayName})\\]?:\\s*`, 'i');
+            text = text.replace(nameRegex, '');
+
+            responses.push({ name: displayName, text });
+            combinedResponses.push(`[${displayName}]: ${text}`);
+        } catch (e) {
+            let errMsg = e.message;
+            if (e.name === 'AbortError') errMsg = "Timed out after 15s.";
+            responses.push({ name: displayName, text: `Error: ${errMsg}` });
+            combinedResponses.push(`[${displayName}]: Error: ${errMsg}`);
+        }
+    });
+
+    // Wait for all models to finish
+    await Promise.all(promises);
+
+    res.status(200).json({
+        responses: responses,
+        history: [...chatHistory.slice(1), { role: "assistant", content: combinedResponses.join("\n\n") }]
+    });
 }
