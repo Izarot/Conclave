@@ -1,8 +1,33 @@
+import fs from 'fs';
+import path from 'path';
+
 export const maxDuration = 60; 
 
 export default async function handler(req, res) {
     let allModels = [];
 
+    // 1. THE PLUGIN SCANNER
+    // Scans the api/adapters folder for any .js files
+    const adaptersDir = path.join(process.cwd(), 'api', 'adapters');
+    if (fs.existsSync(adaptersDir)) {
+        const files = fs.readdirSync(adaptersDir).filter(f => f.endsWith('.js'));
+        
+        for (const file of files) {
+            try {
+                // Dynamically import the file
+                const adapter = await import(`./adapters/${file}`);
+                // If it has a getModels function, run it!
+                if (adapter.getModels) {
+                    const customModels = await adapter.getModels();
+                    allModels.push(...customModels);
+                }
+            } catch (e) {
+                console.error(`Failed to load adapter ${file}:`, e.message);
+            }
+        }
+    }
+
+    // 2. Fetch GitHub, NVIDIA, OpenRouter, and Google in parallel
     const [ghRes, nvRes, orRes, gemRes] = await Promise.allSettled([
         fetch("https://models.inference.ai.azure.com/models?api-version=2024-05-01-preview", {
             headers: { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}` }
@@ -17,27 +42,23 @@ export default async function handler(req, res) {
         fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`).then(r => r.json())
     ]);
 
-    // 1. Process GitHub Models
+    // 3. Process GitHub Models
     if (ghRes.status === 'fulfilled') {
         const ghData = ghRes.value;
-        // Check for Azure format (value) or OpenAI format (data)
         const ghModelsArray = ghData.value || ghData.data;
-        
         if (ghModelsArray && Array.isArray(ghModelsArray)) {
             const ghModels = ghModelsArray
                 .filter(m => m.id || m.name)
                 .map(m => ({ id: `github:${m.id || m.name}`, name: `⭐ [GitHub] ${m.name || m.id}` }));
             allModels.push(...ghModels);
         } else {
-            // This will print the exact error to the Vercel logs if GitHub rejects us!
             console.error("GitHub Fetch Failed:", JSON.stringify(ghData));
         }
     }
 
-    // 2. Process NVIDIA NIM (Dynamic + Test ALL)
+    // 4. Process NVIDIA NIM
     if (nvRes.status === 'fulfilled' && nvRes.value.data) {
         const nvCandidateIds = nvRes.value.data.map(m => m.id);
-
         const testNvidiaModel = async (modelId) => {
             try {
                 const controller = new AbortController();
@@ -54,17 +75,14 @@ export default async function handler(req, res) {
                     return { id: `nvidia:${modelId}`, name: `[NVIDIA] ${modelId.split('/').pop()}` };
                 }
                 return null;
-            } catch (e) {
-                return null;
-            }
+            } catch (e) { return null; }
         };
-
         const nvidiaResults = await Promise.all(nvCandidateIds.map(id => testNvidiaModel(id)));
         const activeNvidiaModels = nvidiaResults.filter(m => m !== null);
         allModels.push(...activeNvidiaModels);
     }
 
-    // 3. Process OpenRouter
+    // 5. Process OpenRouter
     if (orRes.status === 'fulfilled' && orRes.value.data) {
         const orModels = orRes.value.data
             .filter(m => m.id && m.pricing && m.pricing.prompt === "0")
@@ -72,7 +90,7 @@ export default async function handler(req, res) {
         allModels.push(...orModels);
     }
 
-    // 4. Process Google Gemini
+    // 6. Process Google Gemini
     if (gemRes.status === 'fulfilled' && gemRes.value.models) {
         const gemModels = gemRes.value.models
             .filter(m => {
