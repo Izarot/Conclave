@@ -231,9 +231,8 @@
                 addMessage('ai', 'Error: ' + data.error, 'System');
             }
         } catch (e) {
-            addMessage('ai', 'Network Error.', 'System');
+            addMessage('ai', 'Network Error: Vercel function timed out or crashed. Check if you selected too many slow models.', 'System');
         }
-    }
 
     document.getElementById('user-input').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendMessage();
