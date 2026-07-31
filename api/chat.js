@@ -4,10 +4,9 @@ export default async function handler(req, res) {
     const { message, history, models } = req.body;
     if (!models || models.length === 0) return res.status(400).json({ error: "No models selected" });
 
-    // A neutral system prompt to stop reasoning models from leaking their thoughts
     const systemPrompt = { 
         role: "system", 
-        content: "You are an AI assistant in a multi-model group chat. Answer the user directly and concisely. Do not output your internal thought process, reasoning steps, or bullet points. Output ONLY your final response. Do not include your name at the start of your response." 
+        content: "You are an AI assistant in a group chat. Answer the user directly. CRITICAL RULE: Do NOT output your internal reasoning, thought process, or planning. Output ONLY your final response." 
     };
 
     const chatHistory = [systemPrompt, ...history, { role: "user", content: message }];
@@ -23,9 +22,14 @@ export default async function handler(req, res) {
             let url, headers, body;
 
             switch (provider) {
-                case 'github':
-                    url = "https://models.inference.ai.azure.com/chat/completions";
-                    headers = { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`, "Content-Type": "application/json" };
+                case 'deepinfra':
+                    url = "https://api.deepinfra.com/v1/openai/chat/completions";
+                    headers = { "Authorization": `Bearer ${process.env.DEEPINFRA_API_KEY}`, "Content-Type": "application/json" };
+                    body = { model: actualModelId, messages: chatHistory, max_tokens: 300 };
+                    break;
+                case 'hf':
+                    url = "https://api-inference.huggingface.co/v1/chat/completions";
+                    headers = { "Authorization": `Bearer ${process.env.HF_TOKEN}`, "Content-Type": "application/json" };
                     body = { model: actualModelId, messages: chatHistory, max_tokens: 300 };
                     break;
                 case 'openrouter':
@@ -51,15 +55,25 @@ export default async function handler(req, res) {
             const data = await apiRes.json();
             if (!apiRes.ok) throw new Error(data.error?.message || "API Error");
             
-            // SAFE ACCESS: Prevents the .trim() crash if the model returns nothing or gets blocked
             if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
                 throw new Error("No response generated (likely blocked by safety filter).");
             }
 
             let text = data.choices[0].message.content.trim();
+
+            // Aggressive Thought Slicer
+            const thoughtMarkers = ["We need to", "The user", "I should", "Okay, the user", "Hmm,", "Let's", "I will output"];
+            for (const marker of thoughtMarkers) {
+                if (text.startsWith(marker)) {
+                    const answerStart = text.lastIndexOf('\n');
+                    if (answerStart > 0 && answerStart < text.length - 1) {
+                        text = text.substring(answerStart).trim();
+                    }
+                }
+            }
             
-            // Clean up if the model accidentally includes its name at the start
-            const nameRegex = new RegExp(`^\\[(${displayName})\\]:\\s*`, 'i');
+            // Clean up if the model accidentally includes its name
+            const nameRegex = new RegExp(`^\\[?(${displayName})\\]?:\\s*`, 'i');
             text = text.replace(nameRegex, '');
 
             responses.push({ name: displayName, text });
