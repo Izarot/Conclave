@@ -53,10 +53,11 @@ export default async function handler(req, res) {
             });
 
             const data = await apiRes.json();
-            if (!apiRes.ok) throw new Error(data.error?.message || "API Error");
-            
-            if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
-                throw new Error("No response generated (likely blocked by safety filter).");
+            if (!apiRes.ok) {
+                // Extract the exact error message from the provider
+                const errorMsg = data.error?.message || data.detail || data.message || `HTTP ${apiRes.status} Error`;
+                console.error(`🔴 [${provider}] REJECTED:`, errorMsg);
+                throw new Error(errorMsg);
             }
 
             let text = data.choices[0].message.content.trim();
@@ -79,6 +80,7 @@ export default async function handler(req, res) {
             responses.push({ name: displayName, text });
             combinedResponses.push(`[${displayName}]: ${text}`);
         } catch (e) {
+            console.error(`🔴 [${provider}] ERROR:`, e.message);
             responses.push({ name: displayName, text: `Error: ${e.message}` });
             combinedResponses.push(`[${displayName}]: Error: ${e.message}`);
         }
