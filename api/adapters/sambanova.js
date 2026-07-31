@@ -19,10 +19,16 @@ export async function getModels() {
         const data = await res.json();
         
         if (data && data.data) {
-            return data.data.map(m => ({
-                id: `sambanova:${m.id}`,
-                name: `⚡ [SambaNova] ${m.id.split('/').pop()}`
-            }));
+            return data.data
+                .filter(m => {
+                    const id = m.id.toLowerCase();
+                    // Filter out paid/trap models so they don't show up in the dropdown
+                    return !id.includes("minimax");
+                })
+                .map(m => ({
+                    id: `sambanova:${m.id}`,
+                    name: `⚡ [SambaNova] ${m.id.split('/').pop()}`
+                }));
         }
     } catch (e) {
         console.error("SambaNova fetch failed:", e.message);
