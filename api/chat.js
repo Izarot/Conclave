@@ -27,10 +27,17 @@ export default async function handler(req, res) {
 
             switch (provider) {
                 case 'gemini':
-                    // Google's OpenAI-compatible endpoint!
-                    url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-                    headers = { "Authorization": `Bearer ${process.env.GEMINI_API_KEY}`, "Content-Type": "application/json" };
-                    body = { model: actualModelId, messages: chatHistory, max_tokens: 300 };
+                    // FIXED: Using Google's native generateContent endpoint to stop 404s
+                    url = `https://generativelanguage.googleapis.com/v1beta/models/${actualModelId}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+                    headers = { "Content-Type": "application/json" };
+                    // Google requires converting OpenAI history to their specific format
+                    body = {
+                        contents: chatHistory.map(msg => ({
+                            role: msg.role === "assistant" ? "model" : "user",
+                            parts: [{ text: msg.content }]
+                        })),
+                        generationConfig: { maxOutputTokens: 300, temperature: 0.7 }
+                    };
                     break;
                 case 'openrouter':
                     url = "https://openrouter.ai/api/v1/chat/completions";
@@ -58,11 +65,19 @@ export default async function handler(req, res) {
                 throw new Error(errorMsg);
             }
             
-            if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
-                throw new Error("No response generated (likely blocked by safety filter).");
+            let text;
+            // Extract text differently based on Google vs OpenAI format
+            if (provider === 'gemini') {
+                if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                    throw new Error("No response generated (likely blocked by safety filter).");
+                }
+                text = data.candidates[0].content.parts[0].text.trim();
+            } else {
+                if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+                    throw new Error("No response generated (likely blocked by safety filter).");
+                }
+                text = data.choices[0].message.content.trim();
             }
-
-            let text = data.choices[0].message.content.trim();
 
             // Aggressive Thought Slicer
             const thoughtMarkers = ["We need to", "The user", "I should", "Okay, the user", "Hmm,", "Let's", "I will output"];
