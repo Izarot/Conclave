@@ -70,7 +70,6 @@ app.post('/api/save-chat', (req, res) => {
 app.post('/api/chat', async (req, res) => {
     const { message, history, models } = req.body;
     
-    // models is an array like: [{ id: "gpt-4o", nickname: "Brainiac" }]
     if (!models || models.length === 0) return res.status(400).json({ error: "No models selected" });
 
     const chatHistory = [...history, { role: "user", content: message }];
@@ -87,19 +86,25 @@ app.post('/api/chat', async (req, res) => {
                 },
                 body: JSON.stringify({
                     model: modelObj.id,
-                    messages: chatHistory, // No system prompt! Bands are off.
+                    messages: chatHistory,
                     max_tokens: 200
                 })
             });
 
             const data = await apiRes.json();
-            if (!apiRes.ok) throw new Error(data.error?.message || "API Error");
+            
+            // If GitHub rejects it, print the EXACT error to the terminal
+            if (!apiRes.ok) {
+                console.error("🔴 GITHUB API REJECTED THE REQUEST:", JSON.stringify(data, null, 2));
+                throw new Error(data.error?.message || "API Error");
+            }
             
             const text = data.choices[0].message.content.trim();
             const displayName = modelObj.nickname || modelObj.id;
             responses.push({ name: displayName, text });
             combinedResponses.push(`[${displayName}]: ${text}`);
         } catch (e) {
+            console.error("🔴 CATCH BLOCK ERROR:", e.message);
             const displayName = modelObj.nickname || modelObj.id;
             responses.push({ name: displayName, text: `Error: ${e.message}` });
             combinedResponses.push(`[${displayName}]: Error: ${e.message}`);
@@ -116,6 +121,4 @@ app.post('/api/chat', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 Conclave Server running at http://localhost:${PORT}`);
-    // DEBUG: Print the first 10 characters of the token to prove it's loaded
-    console.log("DEBUG: GITHUB_TOKEN loaded as:", process.env.GITHUB_TOKEN ? process.env.GITHUB_TOKEN.substring(0, 10) + "..." : "UNDEFINED");
 });
