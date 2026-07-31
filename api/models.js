@@ -1,9 +1,8 @@
-export const maxDuration = 60; // Allow time for dynamic model testing
+export const maxDuration = 60; 
 
 export default async function handler(req, res) {
     let allModels = [];
 
-    // 1. Fetch all 4 providers dynamically in parallel!
     const [ghRes, nvRes, orRes, gemRes] = await Promise.allSettled([
         fetch("https://models.inference.ai.azure.com/models?api-version=2024-05-01-preview", {
             headers: { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}` }
@@ -18,16 +17,24 @@ export default async function handler(req, res) {
         fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`).then(r => r.json())
     ]);
 
-    // 2. Process GitHub Models (Dynamic)
-    if (ghRes.status === 'fulfilled' && (ghRes.value.data || ghRes.value.value)) {
-        const ghData = ghRes.value.data || ghRes.value.value;
-        const ghModels = ghData
-            .filter(m => m.id) // Grab whatever GitHub says is available
-            .map(m => ({ id: `github:${m.id}`, name: `⭐ [GitHub] ${m.name || m.id}` }));
-        allModels.push(...ghModels);
+    // 1. Process GitHub Models
+    if (ghRes.status === 'fulfilled') {
+        const ghData = ghRes.value;
+        // Check for Azure format (value) or OpenAI format (data)
+        const ghModelsArray = ghData.value || ghData.data;
+        
+        if (ghModelsArray && Array.isArray(ghModelsArray)) {
+            const ghModels = ghModelsArray
+                .filter(m => m.id || m.name)
+                .map(m => ({ id: `github:${m.id || m.name}`, name: `⭐ [GitHub] ${m.name || m.id}` }));
+            allModels.push(...ghModels);
+        } else {
+            // This will print the exact error to the Vercel logs if GitHub rejects us!
+            console.error("GitHub Fetch Failed:", JSON.stringify(ghData));
+        }
     }
 
-    // 3. Process NVIDIA NIM (Dynamic + Test ALL)
+    // 2. Process NVIDIA NIM (Dynamic + Test ALL)
     if (nvRes.status === 'fulfilled' && nvRes.value.data) {
         const nvCandidateIds = nvRes.value.data.map(m => m.id);
 
@@ -57,7 +64,7 @@ export default async function handler(req, res) {
         allModels.push(...activeNvidiaModels);
     }
 
-    // 4. Process OpenRouter (Dynamic, free models only)
+    // 3. Process OpenRouter
     if (orRes.status === 'fulfilled' && orRes.value.data) {
         const orModels = orRes.value.data
             .filter(m => m.id && m.pricing && m.pricing.prompt === "0")
@@ -65,7 +72,7 @@ export default async function handler(req, res) {
         allModels.push(...orModels);
     }
 
-    // 5. Process Google Gemini (Dynamic + Blacklist)
+    // 4. Process Google Gemini
     if (gemRes.status === 'fulfilled' && gemRes.value.models) {
         const gemModels = gemRes.value.models
             .filter(m => {
