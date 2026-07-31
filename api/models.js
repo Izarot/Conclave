@@ -6,16 +6,21 @@ export default async function handler(req, res) {
         fetch("https://openrouter.ai/api/v1/models").then(r => r.json())
     ]);
 
-    // 1. Google Gemini (Dynamic fetch + Smart Blacklist)
+    // 1. Google Gemini (Dynamic + Bulletproof Blacklist)
     if (gemRes.status === 'fulfilled' && gemRes.value.models) {
         const gemModels = gemRes.value.models
             .filter(m => {
                 if (!m.supportedGenerationMethods?.includes("generateContent")) return false;
                 const name = m.name.toLowerCase();
-                // Smart Blacklist: Remove audio, image, embeddings, and preview models with limit: 0
+                
+                // Filter out models that require paid tiers or specialized APIs
+                if (name.includes("pro")) return false; // Pro models have limit: 0 on free tier
+                if (name.includes("antigravity") || name.includes("deep-research")) return false;
                 if (name.includes("tts") || name.includes("image") || name.includes("audio") || name.includes("vision")) return false;
                 if (name.includes("lyria") || name.includes("aqa") || name.includes("embedding")) return false;
+                if (name.includes("gemma")) return false; // Gemma leaks thoughts and hits high demand
                 if (name.includes("2.0-flash") && !name.includes("latest")) return false;
+                
                 return true;
             })
             .map(m => ({ id: `gemini:${m.name.replace('models/', '')}`, name: `[Google] ${m.displayName || m.name}` }));
