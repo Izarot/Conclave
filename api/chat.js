@@ -1,4 +1,3 @@
-import { setTimeout } from 'timers/promises';
 import fs from 'fs';
 import path from 'path';
 
@@ -19,7 +18,7 @@ export default async function handler(req, res) {
     const responses = [];
     const combinedResponses = [];
 
-    // Load custom adapters once
+    // Load custom adapters
     const adaptersDir = path.join(process.cwd(), 'api', 'adapters');
     let customAdapters = {};
     if (fs.existsSync(adaptersDir)) {
@@ -42,25 +41,13 @@ export default async function handler(req, res) {
             
             let url, headers, body;
 
-            // Check if it's a custom adapter first
             if (customAdapters[provider] && customAdapters[provider].getChatConfig) {
                 const config = customAdapters[provider].getChatConfig(actualModelId, chatHistory);
                 url = config.url;
                 headers = config.headers;
                 body = config.body;
             } else {
-                // Built-in providers
                 switch (provider) {
-                    case 'github':
-                        url = "https://models.inference.ai.azure.com/chat/completions?api-version=2024-05-01-preview";
-                        headers = { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`, "Content-Type": "application/json" };
-                        body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
-                        break;
-                    case 'nvidia':
-                        url = "https://integrate.api.nvidia.com/v1/chat/completions";
-                        headers = { "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}`, "Content-Type": "application/json" };
-                        body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
-                        break;
                     case 'gemini':
                         url = `https://generativelanguage.googleapis.com/v1beta/models/${actualModelId}:generateContent?key=${process.env.GEMINI_API_KEY}`;
                         headers = { "Content-Type": "application/json" };
@@ -97,7 +84,6 @@ export default async function handler(req, res) {
             }
             
             let text;
-            // Let custom adapters parse their own response if they want
             if (customAdapters[provider] && customAdapters[provider].parseResponse) {
                 text = customAdapters[provider].parseResponse(data);
             } else if (provider === 'gemini') {
@@ -108,7 +94,6 @@ export default async function handler(req, res) {
                 text = data.choices[0].message.content.trim();
             }
 
-            // UPGRADED THOUGHT SLICER
             const lines = text.split('\n');
             const cleanLines = lines.filter(line => {
                 const trimmed = line.trim();
