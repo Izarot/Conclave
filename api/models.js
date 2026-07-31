@@ -13,13 +13,19 @@ export default async function handler(req, res) {
                 if (!m.supportedGenerationMethods?.includes("generateContent")) return false;
                 const name = m.name.toLowerCase();
                 
-                // Filter out models that require paid tiers or specialized APIs
-                if (name.includes("pro")) return false; // Pro models have limit: 0 on free tier
+                // Blacklist: Pro models (require paid tier)
+                if (name.includes("pro")) return false;
+                // Blacklist: Deprecated models
+                if (name.includes("2.5-flash")) return false;
+                // Blacklist: Restricted/Preview models with limit: 0
+                if (name.includes("omni")) return false;
                 if (name.includes("antigravity") || name.includes("deep-research")) return false;
+                // Blacklist: Non-text models
                 if (name.includes("tts") || name.includes("image") || name.includes("audio") || name.includes("vision")) return false;
                 if (name.includes("lyria") || name.includes("aqa") || name.includes("embedding")) return false;
-                if (name.includes("gemma")) return false; // Gemma leaks thoughts and hits high demand
-                if (name.includes("2.0-flash") && !name.includes("latest")) return false;
+                if (name.includes("gemma")) return false; 
+                // Blacklist: 3.5-flash (hits high demand constantly, keep -lite)
+                if (name.includes("3.5-flash") && !name.includes("lite")) return false;
                 
                 return true;
             })
