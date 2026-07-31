@@ -6,26 +6,22 @@ export default async function handler(req, res) {
         fetch("https://openrouter.ai/api/v1/models").then(r => r.json())
     ]);
 
-    // 1. Google Gemini (Dynamic + Bulletproof Blacklist)
+    // 1. Google Gemini (Dynamic + Ultimate Blacklist)
     if (gemRes.status === 'fulfilled' && gemRes.value.models) {
         const gemModels = gemRes.value.models
             .filter(m => {
                 if (!m.supportedGenerationMethods?.includes("generateContent")) return false;
                 const name = m.name.toLowerCase();
                 
-                // Blacklist: Pro models (require paid tier)
-                if (name.includes("pro")) return false;
-                // Blacklist: Deprecated models
-                if (name.includes("2.5-flash")) return false;
-                // Blacklist: Restricted/Preview models with limit: 0
-                if (name.includes("omni")) return false;
-                if (name.includes("antigravity") || name.includes("deep-research")) return false;
-                // Blacklist: Non-text models
+                // The Ultimate Blacklist: Kill all restricted/broken/experimental models
+                if (name.includes("pro")) return false; 
+                if (name.includes("2.0") || name.includes("2.5")) return false; // Kill 2.0 and 2.5 (deprecated or limit: 0)
+                if (name.includes("robotics") || name.includes("computer-use")) return false;
+                if (name.includes("omni") || name.includes("antigravity") || name.includes("deep-research")) return false;
                 if (name.includes("tts") || name.includes("image") || name.includes("audio") || name.includes("vision")) return false;
                 if (name.includes("lyria") || name.includes("aqa") || name.includes("embedding")) return false;
                 if (name.includes("gemma")) return false; 
-                // Blacklist: 3.5-flash (hits high demand constantly, keep -lite)
-                if (name.includes("3.5-flash") && !name.includes("lite")) return false;
+                if (name.includes("3.5-flash") && !name.includes("lite")) return false; // Keep 3.5-flash-lite, kill 3.5-flash
                 
                 return true;
             })
