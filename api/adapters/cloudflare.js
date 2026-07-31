@@ -11,7 +11,9 @@ export async function getModels() {
     }
 
     try {
-        const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/models`, {
+        // FIXED: Cloudflare uses /ai/models/search to list models
+        const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models/search`, {
+            method: "GET",
             headers: { 
                 "Authorization": `Bearer ${apiToken}`,
                 "Accept": "application/json" 
@@ -26,7 +28,6 @@ export async function getModels() {
 
         const data = await res.json();
         
-        // If Cloudflare rejects the token, it returns success: false
         if (!data.success) {
             console.error("Cloudflare API Error:", JSON.stringify(data.errors));
             return [];
