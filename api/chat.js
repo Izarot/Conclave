@@ -1,4 +1,5 @@
 import { setTimeout } from 'timers/promises';
+
 export const maxDuration = 60;
 
 export default async function handler(req, res) {
@@ -40,16 +41,10 @@ export default async function handler(req, res) {
                     headers = { "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`, "Content-Type": "application/json", "HTTP-Referer": "https://vercel.app", "X-Title": "Conclave" };
                     body = { model: actualModelId, messages: chatHistory, max_tokens: 300 };
                     break;
-                case 'pollinations':
-                    url = "https://text.pollinations.ai/openai";
-                    headers = { "Content-Type": "application/json" };
-                    body = { model: actualModelId, messages: chatHistory, max_tokens: 300 };
-                    break;
                 default:
                     throw new Error("Unknown provider");
             }
 
-            // 15-Second Timer per model
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -63,7 +58,15 @@ export default async function handler(req, res) {
 
             const data = await apiRes.json();
             if (!apiRes.ok) {
-                const errorMsg = data.error?.message || data.detail || data.message || `HTTP ${apiRes.status} Error`;
+                // FIXED: Safely stringify the error object so we never see [object Object] again
+                let errorMsg;
+                if (data.error) {
+                    errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
+                } else if (data.detail) {
+                    errorMsg = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+                } else {
+                    errorMsg = `HTTP ${apiRes.status} Error`;
+                }
                 throw new Error(errorMsg);
             }
             
@@ -73,7 +76,6 @@ export default async function handler(req, res) {
 
             let text = data.choices[0].message.content.trim();
 
-            // Aggressive Thought Slicer
             const thoughtMarkers = ["We need to", "The user", "I should", "Okay, the user", "Hmm,", "Let's", "I will output"];
             for (const marker of thoughtMarkers) {
                 if (text.startsWith(marker)) {
