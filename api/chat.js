@@ -18,6 +18,7 @@ export default async function handler(req, res) {
     const responses = [];
     const combinedResponses = [];
 
+    // Load custom adapters
     const adaptersDir = path.join(process.cwd(), 'api', 'adapters');
     let customAdapters = {};
     if (fs.existsSync(adaptersDir)) {
@@ -83,7 +84,14 @@ export default async function handler(req, res) {
 
             const data = await apiRes.json();
             if (!apiRes.ok) {
-                let errorMsg = data.error?.message || data.detail || `HTTP ${apiRes.status} Error`;
+                let errorMsg = data.error?.message || data.detail || data.message;
+                
+                // Cloudflare specific error format extraction
+                if (!errorMsg && data.errors && Array.isArray(data.errors)) {
+                    errorMsg = data.errors.map(e => e.message).join(", ");
+                }
+                
+                if (!errorMsg) errorMsg = `HTTP ${apiRes.status} Error`;
                 throw new Error(errorMsg);
             }
             
