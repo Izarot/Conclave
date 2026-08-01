@@ -17,34 +17,59 @@ export async function getModels() {
         
         const data = await res.json();
         
-        if (!data.success) {
-            console.error("Cloudflare API Error:", JSON.stringify(data.errors));
-            return [];
-        }
+        if (!data.success || !data.result) return [];
+
+        // 1. Filter for text-generation models only
+        const candidateModels = data.result.filter(m => {
+            let taskName = "";
+            if (typeof m.task === 'string') taskName = m.task;
+            else if (m.task && m.task.name) taskName = m.task.name;
+            
+            const isTextGen = taskName.toLowerCase().includes("text");
+            const name = m.name.toLowerCase();
+            const isJunk = name.includes("embed") || name.includes("image") || name.includes("whisper") || name.includes("speech") || name.includes("pipecat") || name.includes("dumb");
+            
+            return isTextGen && !isJunk;
+        });
+
+        // 2. Test each model with a 1-token request to ensure it works on the Free Plan!
+        const testModel = async (m) => {
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout per model
+                
+                const testRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/chat/completions`, {
+                    method: "POST",
+                    headers: { 
+                        "Authorization": `Bearer ${apiToken}`, 
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: m.name,
+                        messages: [{ role: "user", content: "hi" }],
+                        max_tokens: 1 // Just 1 token to save time/credits
+                    }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeout);
+                
+                const testData = await testRes.json();
+                // If Cloudflare says success, the model is active on the free plan!
+                if (testData.success && testData.result) {
+                    return { id: `cloudflare:${m.name}`, name: `☁️ [Cloudflare] ${m.name.replace('@cf/', '')}` };
+                }
+                return null; // Paid or broken model
+            } catch (e) {
+                return null; // Timeout or network error
+            }
+        };
+
+        // Run all tests in parallel!
+        const testedModels = await Promise.all(candidateModels.map(m => testModel(m)));
         
-        if (data && data.result) {
-            return data.result
-                .filter(m => {
-                    // FIXED: Cloudflare uses task.name, not task.type!
-                    let taskName = "";
-                    if (typeof m.task === 'string') taskName = m.task;
-                    else if (m.task && m.task.name) taskName = m.task.name;
-                    
-                    // Only keep Text Generation models
-                    const isTextGen = taskName.toLowerCase().includes("text");
-                    
-                    // Filter out audio/image/embedding junk just to be safe
-                    const name = m.name.toLowerCase();
-                    const isJunk = name.includes("embed") || name.includes("image") || name.includes("whisper") || name.includes("speech") || name.includes("pipecat") || name.includes("dumb");
-                    
-                    return isTextGen && !isJunk;
-                })
-                .map(m => ({
-                    id: `cloudflare:${m.name}`,
-                    name: `☁️ [Cloudflare] ${m.name.replace('@cf/', '')}`
-                }));
-        }
-        return [];
+        // Filter out the nulls (the paid/broken ones)
+        return testedModels.filter(m => m !== null);
+
     } catch (e) {
         console.error("Cloudflare fetch failed:", e.message);
         return [];
