@@ -17,9 +17,6 @@ export async function getModels() {
         
         const data = await res.json();
         
-        // DEBUG: Print the raw response to see what Cloudflare is sending
-        console.log("Cloudflare Raw Response:", JSON.stringify(data).substring(0, 500));
-        
         if (!data.success) {
             console.error("Cloudflare API Error:", JSON.stringify(data.errors));
             return [];
@@ -27,7 +24,21 @@ export async function getModels() {
         
         if (data && data.result) {
             return data.result
-                .filter(m => m.task?.type === "text-generation" || m.task === "text-generation")
+                .filter(m => {
+                    // FIXED: Cloudflare uses task.name, not task.type!
+                    let taskName = "";
+                    if (typeof m.task === 'string') taskName = m.task;
+                    else if (m.task && m.task.name) taskName = m.task.name;
+                    
+                    // Only keep Text Generation models
+                    const isTextGen = taskName.toLowerCase().includes("text");
+                    
+                    // Filter out audio/image/embedding junk just to be safe
+                    const name = m.name.toLowerCase();
+                    const isJunk = name.includes("embed") || name.includes("image") || name.includes("whisper") || name.includes("speech") || name.includes("pipecat") || name.includes("dumb");
+                    
+                    return isTextGen && !isJunk;
+                })
                 .map(m => ({
                     id: `cloudflare:${m.name}`,
                     name: `☁️ [Cloudflare] ${m.name.replace('@cf/', '')}`
