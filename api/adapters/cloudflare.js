@@ -32,11 +32,11 @@ export async function getModels() {
             return isTextGen && !isJunk;
         });
 
-        // 2. Test each model with a 1-token request to ensure it works on the Free Plan!
+        // 2. Test each model with a 1-token request
         const testModel = async (m) => {
             try {
                 const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout per model
+                const timeout = setTimeout(() => controller.abort(), 5000);
                 
                 const testRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/chat/completions`, {
                     method: "POST",
@@ -47,27 +47,26 @@ export async function getModels() {
                     body: JSON.stringify({
                         model: m.name,
                         messages: [{ role: "user", content: "hi" }],
-                        max_tokens: 1 // Just 1 token to save time/credits
+                        max_tokens: 1
                     }),
                     signal: controller.signal
                 });
                 clearTimeout(timeout);
                 
                 const testData = await testRes.json();
-                // If Cloudflare says success, the model is active on the free plan!
-                if (testData.success && testData.result) {
+                
+                // FIXED: Check for OpenAI 'choices' array OR Cloudflare 'success' flag
+                if (testRes.ok && (testData.choices || testData.success)) {
                     return { id: `cloudflare:${m.name}`, name: `☁️ [Cloudflare] ${m.name.replace('@cf/', '')}` };
                 }
                 return null; // Paid or broken model
             } catch (e) {
-                return null; // Timeout or network error
+                return null;
             }
         };
 
-        // Run all tests in parallel!
+        // Run all tests in parallel
         const testedModels = await Promise.all(candidateModels.map(m => testModel(m)));
-        
-        // Filter out the nulls (the paid/broken ones)
         return testedModels.filter(m => m !== null);
 
     } catch (e) {
