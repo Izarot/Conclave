@@ -7,8 +7,8 @@ export async function getModels() {
     if (!accountId || !apiToken) return [];
 
     try {
-        // FIXED: Use the official /ai/models endpoint for listing
-        const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models`, {
+        // FIXED: The URL MUST include /search at the end!
+        const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models/search`, {
             method: "GET",
             headers: { 
                 "Authorization": `Bearer ${apiToken}`,
@@ -24,7 +24,6 @@ export async function getModels() {
         }
         
         if (data && data.result) {
-            // Filter for text generation models ONLY
             return data.result
                 .filter(m => m.task?.type === "text-generation" || m.task === "text-generation")
                 .map(m => ({
