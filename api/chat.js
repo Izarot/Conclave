@@ -18,7 +18,6 @@ export default async function handler(req, res) {
     const responses = [];
     const combinedResponses = [];
 
-    // Load custom adapters
     const adaptersDir = path.join(process.cwd(), 'api', 'adapters');
     let customAdapters = {};
     if (fs.existsSync(adaptersDir)) {
@@ -48,6 +47,11 @@ export default async function handler(req, res) {
                 body = config.body;
             } else {
                 switch (provider) {
+                    case 'github':
+                        url = "https://models.inference.ai.azure.com/chat/completions?api-version=2024-05-01-preview";
+                        headers = { "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`, "Content-Type": "application/json" };
+                        body = { model: actualModelId, messages: chatHistory, max_tokens: 500 };
+                        break;
                     case 'gemini':
                         url = `https://generativelanguage.googleapis.com/v1beta/models/${actualModelId}:generateContent?key=${process.env.GEMINI_API_KEY}`;
                         headers = { "Content-Type": "application/json" };
