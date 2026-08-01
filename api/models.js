@@ -7,16 +7,13 @@ export default async function handler(req, res) {
     let allModels = [];
 
     // 1. THE PLUGIN SCANNER
-    // Scans the api/adapters folder for any .js files
     const adaptersDir = path.join(process.cwd(), 'api', 'adapters');
     if (fs.existsSync(adaptersDir)) {
         const files = fs.readdirSync(adaptersDir).filter(f => f.endsWith('.js'));
         
         for (const file of files) {
             try {
-                // Dynamically import the file
                 const adapter = await import(`./adapters/${file}`);
-                // If it has a getModels function, run it!
                 if (adapter.getModels) {
                     const customModels = await adapter.getModels();
                     allModels.push(...customModels);
@@ -42,18 +39,13 @@ export default async function handler(req, res) {
         fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`).then(r => r.json())
     ]);
 
-    // 3. Process GitHub Models
-    if (ghRes.status === 'fulfilled') {
-        const ghData = ghRes.value;
-        const ghModelsArray = ghData.value || ghData.data;
-        if (ghModelsArray && Array.isArray(ghModelsArray)) {
-            const ghModels = ghModelsArray
-                .filter(m => m.id || m.name)
-                .map(m => ({ id: `github:${m.id || m.name}`, name: `⭐ [GitHub] ${m.name || m.id}` }));
-            allModels.push(...ghModels);
-        } else {
-            console.error("GitHub Fetch Failed:", JSON.stringify(ghData));
-        }
+    // 3. Process GitHub Models (FIXED: Handle raw array response)
+    if (ghRes.status === 'fulfilled' && Array.isArray(ghRes.value)) {
+        const ghModelsArray = ghRes.value;
+        const ghModels = ghModelsArray
+            .filter(m => m.task === "chat-completion") // Only text models!
+            .map(m => ({ id: `github:${m.name}`, name: `⭐ [GitHub] ${m.friendly_name || m.name}` }));
+        allModels.push(...ghModels);
     }
 
     // 4. Process NVIDIA NIM
