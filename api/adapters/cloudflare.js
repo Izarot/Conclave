@@ -7,7 +7,6 @@ export async function getModels() {
     if (!accountId || !apiToken) return [];
 
     try {
-        // FIXED: The URL MUST include /search at the end!
         const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models/search`, {
             method: "GET",
             headers: { 
@@ -17,6 +16,9 @@ export async function getModels() {
         });
         
         const data = await res.json();
+        
+        // DEBUG: Print the raw response to see what Cloudflare is sending
+        console.log("Cloudflare Raw Response:", JSON.stringify(data).substring(0, 500));
         
         if (!data.success) {
             console.error("Cloudflare API Error:", JSON.stringify(data.errors));
