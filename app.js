@@ -260,3 +260,8 @@ async function sendMessage() {
 
 function autoResize(t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
 el('user-input').addEventListener('keypress', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+
+function toggleSidebar() {
+    el('sidebar').classList.toggle('open');
+    el('overlay').classList.toggle('show');
+}
