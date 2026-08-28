@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Conclave</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg stroke='white' stroke-width='2'%3E%3Cline x1='50' y1='20' x2='50' y2='50'/%3E%3Cline x1='78.5' y1='40.7' x2='50' y2='50'/%3E%3Cline x1='67.6' y1='74.3' x2='50' y2='50'/%3E%3Cline x1='32.4' y1='74.3' x2='50' y2='50'/%3E%3Cline x1='21.5' y1='40.7' x2='50' y2='50'/%3E%3C/g%3E%3Ccircle cx='50' cy='20' r='8' fill='white'/%3E%3Ccircle cx='78.5' cy='40.7' r='8' fill='white'/%3E%3Ccircle cx='67.6' cy='74.3' r='8' fill='white'/%3E%3Ccircle cx='32.4' cy='74.3' r='8' fill='white'/%3E%3Ccircle cx='21.5' cy='40.7' r='8' fill='white'/%3E%3Ccircle cx='50' cy='50' r='12' fill='%232ee6a8'/%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -29,19 +28,50 @@
         body { font-family: 'Inter', sans-serif; background: var(--bg-color); color: var(--text-primary); display: flex; height: 100vh; overflow: hidden; }
 
         /* --- SIDEBAR --- */
-        #sidebar { width: 260px; background: var(--sidebar-bg); display: flex; flex-direction: column; border-right: 1px solid var(--border-color); flex-shrink: 0; }
+        #sidebar { width: 280px; background: var(--sidebar-bg); display: flex; flex-direction: column; border-right: 1px solid var(--border-color); flex-shrink: 0; }
         .sidebar-header { padding: 15px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); }
-        .logo svg { width: 28px; height: 28px; }
-        .sidebar-header h2 { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
+        .sidebar-header h2 { font-size: 17px; font-weight: 700; }
+        
+        /* Sidebar Tabs */
+        .sidebar-tabs { display: flex; border-bottom: 1px solid var(--border-color); }
+        .sidebar-tab { flex: 1; padding: 12px 0; background: transparent; border: none; color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+        .sidebar-tab:hover { color: var(--text-primary); }
+        .sidebar-tab.active { color: #fff; border-bottom: 2px solid #fff; }
+        
+        .sidebar-content { flex: 1; overflow-y: auto; display: none; flex-direction: column; }
+        .sidebar-content.active { display: flex; }
+
+        /* Chats Tab */
         .new-chat-btn { margin: 15px; padding: 10px; background: var(--btn-bg); color: var(--btn-text); border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
-        #chat-list { flex: 1; overflow-y: auto; padding: 0 10px 10px; display: flex; flex-direction: column; gap: 4px; }
+        #chat-list { padding: 0 10px 10px; display: flex; flex-direction: column; gap: 4px; }
         .chat-item { padding: 10px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; }
         .chat-item:hover { background: #1a1a1a; color: var(--text-primary); }
         .chat-item.active { background: #1c1c1c; color: var(--text-primary); }
         .chat-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
         .chat-actions { display: none; gap: 5px; }
         .chat-item:hover .chat-actions { display: flex; }
-        .logout-btn { margin: 15px; padding: 8px; background: transparent; color: var(--error-text); border: 1px solid var(--error-text); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; }
+        .logout-btn { margin: 15px; padding: 8px; background: transparent; color: var(--error-text); border: 1px solid var(--error-text); border-radius: 8px; cursor: pointer; font-size: 13px; }
+
+        /* Models Tab */
+        .models-toolbar { padding: 15px 10px 5px; }
+        .model-search { width: 100%; background: #000; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; color: #fff; font-size: 13px; outline: none; }
+        .model-count { padding: 5px 10px; font-size: 11px; color: var(--text-secondary); }
+        #models-list { padding: 5px 10px 10px; display: flex; flex-direction: column; gap: 4px; }
+        .model-item { padding: 8px 10px; border-radius: 8px; background: #0a0a0a; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .model-item .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; color: var(--text-primary); }
+        .model-item button { background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); border-radius: 6px; padding: 3px 8px; cursor: pointer; font-size: 12px; margin-left: 5px; }
+        .model-item button:hover { border-color: #fff; color: #fff; }
+        .model-item button.blacklisted { color: var(--error-text); border-color: var(--error-text); }
+        .models-note { padding: 10px; font-size: 11px; color: var(--text-secondary); }
+
+        /* Settings Tab */
+        .settings-section { padding: 15px 15px 5px; }
+        .settings-section h4 { font-size: 12px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 1px; margin-bottom: 10px; }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius: 8px; font-size: 13px; margin-bottom: 5px; background: #0a0a0a; border: 1px solid var(--border-color); }
+        .setting-row .value { color: var(--text-secondary); }
+        .danger-btn { width: 100%; margin-top: 5px; padding: 10px; background: transparent; color: var(--error-text); border: 1px solid var(--error-text); border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .danger-btn:hover { background: var(--error-text); color: #fff; }
+        .version-info { padding: 20px; text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: auto; }
 
         /* --- MAIN AREA --- */
         #chat-area { flex: 1; display: flex; flex-direction: column; background: var(--bg-color); min-width: 0; }
@@ -52,41 +82,33 @@
         .auth-btn.secondary { background: transparent; color: #fff; border: 1px solid var(--border-color); }
 
         #app-container { display: none; flex-direction: column; flex: 1; height: 100%; }
-        .chat-header { padding: 15px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-        .chat-header h3 { font-size: 16px; font-weight: 500; color: var(--text-secondary); }
+        .chat-header { padding: 12px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
         .branch-btn { background: var(--btn-bg); color: var(--btn-text); border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600; }
 
-        /* Models Bar */
         #models-bar { padding: 10px 20px; background: #0a0a0a; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .model-search-container { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 200px; }
-        .model-search { background: #000; border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 8px; color: #fff; font-size: 12px; outline: none; }
-        .model-search:focus { border-color: #444; }
-        .model-dropdown { background: #000; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; color: #fff; font-size: 13px; outline: none; cursor: pointer; }
-        .nickname-input { background: #000; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; color: #fff; font-size: 13px; width: 120px; outline: none; }
+        .model-dropdown { background: #000; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; color: #fff; font-size: 13px; max-width: 250px; }
+        .nickname-input { background: #000; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; color: #fff; font-size: 13px; width: 110px; outline: none; }
         .add-model-btn { background: var(--btn-bg); color: var(--btn-text); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
-        .reset-models-btn { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; }
-        .active-models-container { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto; }
+        .active-models-container { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
         .model-chip { background: #000; border: 1px solid #333; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
         .model-chip .remove { cursor: pointer; opacity: 0.6; }
 
-        /* Chat Box */
         #chat-box { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .message { max-width: 80%; padding: 15px; border-radius: 12px; font-size: 14px; line-height: 1.6; white-space: normal; overflow-wrap: break-word; }
-        .user-message { align-self: flex-end; background: var(--user-bubble); color: #fff; border-bottom-right-radius: 2px; }
-        .ai-message { align-self: flex-start; background: var(--ai-bubble); border: 1px solid #2a2a2a; color: #fff; border-bottom-left-radius: 2px; }
-        .system-message { align-self: center; background: transparent; border: 1px dashed #444; color: #888; font-size: 12px; padding: 8px 16px; border-radius: 20px; text-align: center; }
-        .system-message.error { border-color: var(--error-text); color: var(--error-text); }
-        .system-message.success { border-color: var(--success-text); color: var(--success-text); }
-        
-        .ai-name { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 8px; opacity: 0.7; }
+        .message { max-width: 80%; padding: 15px; border-radius: 12px; font-size: 14px; line-height: 1.6; overflow-wrap: break-word; }
+        .user-message { align-self: flex-end; background: var(--user-bubble); border-bottom-right-radius: 2px; }
+        .ai-message { align-self: flex-start; background: var(--ai-bubble); border: 1px solid #2a2a2a; border-bottom-left-radius: 2px; }
+        .system-message { align-self: center; border: 1px dashed #444; font-size: 12px; padding: 8px 16px; border-radius: 20px; }
+        .system-message.error { color: var(--error-text); border-color: var(--error-text); }
+        .system-message.success { color: var(--success-text); border-color: var(--success-text); }
+        .ai-name { font-size: 12px; font-weight: 700; margin-bottom: 8px; opacity: 0.7; }
         .ai-message pre { background: #000; padding: 10px; border-radius: 6px; overflow-x: auto; margin: 8px 0; border: 1px solid #2a2a2a; }
-        .ai-message code { font-family: 'Courier New', monospace; font-size: 13px; color: #fff; }
+        .ai-message code { font-family: 'Courier New', monospace; font-size: 13px; }
         .mention { color: var(--mention-color); font-weight: 500; }
-        
-        /* Input Area */
-        #input-area { padding: 20px; background: #000; border-top: 1px solid var(--border-color); display: flex; gap: 15px; align-items: flex-end; }
+
+        #input-area { padding: 20px; border-top: 1px solid var(--border-color); display: flex; gap: 15px; align-items: flex-end; }
         #user-input { flex: 1; background: #111; border: 1px solid var(--border-color); padding: 15px; border-radius: 12px; color: #fff; font-size: 14px; outline: none; resize: none; max-height: 150px; }
-        #send-btn { background: var(--btn-bg); color: var(--btn-text); border: none; padding: 0 20px; height: 50px; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 100px; }
+        #send-btn { background: var(--btn-bg); color: var(--btn-text); border: none; padding: 0 20px; height: 50px; border-radius: 12px; font-weight: 700; cursor: pointer; min-width: 100px; }
+        #send-btn:disabled { opacity: 0.4; }
 
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
@@ -98,28 +120,52 @@
 
 <div id="sidebar">
     <div class="sidebar-header">
-                <div class="logo">
-            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <g stroke="#ffffff" stroke-width="2">
-                    <line x1="50" y1="20" x2="50" y2="50"/>
-                    <line x1="78.5" y1="40.7" x2="50" y2="50"/>
-                    <line x1="67.6" y1="74.3" x2="50" y2="50"/>
-                    <line x1="32.4" y1="74.3" x2="50" y2="50"/>
-                    <line x1="21.5" y1="40.7" x2="50" y2="50"/>
-                </g>
-                <circle cx="50" cy="20" r="8" fill="#ffffff"/>
-                <circle cx="78.5" cy="40.7" r="8" fill="#ffffff"/>
-                <circle cx="67.6" cy="74.3" r="8" fill="#ffffff"/>
-                <circle cx="32.4" cy="74.3" r="8" fill="#ffffff"/>
-                <circle cx="21.5" cy="40.7" r="8" fill="#ffffff"/>
-                <circle cx="50" cy="50" r="12" fill="#2ee6a8"/>
-            </svg>
-        </div>
+        <svg viewBox="0 0 100 100" width="26" height="26" xmlns="http://www.w3.org/2000/svg">
+            <g stroke="#ffffff" stroke-width="2"><line x1="50" y1="20" x2="50" y2="50"/><line x1="78.5" y1="40.7" x2="50" y2="50"/><line x1="67.6" y1="74.3" x2="50" y2="50"/><line x1="32.4" y1="74.3" x2="50" y2="50"/><line x1="21.5" y1="40.7" x2="50" y2="50"/></g>
+            <circle cx="50" cy="20" r="8" fill="#ffffff"/><circle cx="78.5" cy="40.7" r="8" fill="#ffffff"/><circle cx="67.6" cy="74.3" r="8" fill="#ffffff"/><circle cx="32.4" cy="74.3" r="8" fill="#ffffff"/><circle cx="21.5" cy="40.7" r="8" fill="#ffffff"/><circle cx="50" cy="50" r="12" fill="#2ee6a8"/>
+        </svg>
         <h2>The Conclave</h2>
     </div>
-    <button class="new-chat-btn" onclick="newChat()">+ New Chat</button>
-    <div id="chat-list"></div>
-    <button class="logout-btn" onclick="logout()" id="logout-btn" style="display:none;">Logout</button>
+    
+    <div class="sidebar-tabs">
+        <button class="sidebar-tab active" onclick="switchTab('chats')">Chats</button>
+        <button class="sidebar-tab" onclick="switchTab('models')">Models</button>
+        <button class="sidebar-tab" onclick="switchTab('settings')">Settings</button>
+    </div>
+
+    <!-- CHATS TAB -->
+    <div class="sidebar-content active" id="tab-chats">
+        <button class="new-chat-btn" onclick="newChat()">+ New Chat</button>
+        <div id="chat-list"></div>
+        <button class="logout-btn" onclick="logout()" id="logout-btn" style="display:none;">Logout</button>
+    </div>
+
+    <!-- MODELS TAB -->
+    <div class="sidebar-content" id="tab-models">
+        <div class="models-toolbar">
+            <input type="text" class="model-search" id="models-tab-search" placeholder="Search models..." oninput="renderModelsList()">
+        </div>
+        <div class="model-count" id="model-count"></div>
+        <div id="models-list"></div>
+        <div class="models-note">Blacklisted models are hidden everywhere on this device. Add models from the dropdown in the chat header.</div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div class="sidebar-content" id="tab-settings">
+        <div class="settings-section">
+            <h4>Account</h4>
+            <div class="setting-row"><span>Logged in as</span><span class="value" id="settings-username">-</span></div>
+        </div>
+        <div class="settings-section">
+            <h4>Models</h4>
+            <button class="danger-btn" onclick="resetFailedModels()">Unblock failed models</button>
+        </div>
+        <div class="settings-section">
+            <h4>Danger Zone</h4>
+            <button class="danger-btn" onclick="clearAllData()">Clear ALL data (chats, accounts)</button>
+        </div>
+        <div class="version-info">The Conclave v1.0<br>Made by Izarot ⚡</div>
+    </div>
 </div>
 
 <div id="chat-area">
@@ -136,64 +182,57 @@
     <div id="app-container">
         <div class="chat-header">
             <h3 id="current-chat-title">New Chat</h3>
-            <button class="branch-btn" onclick="branchChat()">Branch Chat</button>
+            <button class="branch-btn" onclick="branchChat()">Branch</button>
         </div>
-
         <div id="models-bar">
-            <div class="model-search-container">
-                <input type="text" class="model-search" id="model-search" placeholder="Search models..." oninput="filterModels()">
-                <select class="model-dropdown" id="model-select"><option value="">Loading models...</option></select>
-            </div>
+            <select class="model-dropdown" id="model-select"><option value="">Loading models...</option></select>
             <input type="text" class="nickname-input" id="nickname-input" placeholder="Nickname">
             <button class="add-model-btn" onclick="addModel()">+ Add</button>
-            <button class="reset-models-btn" onclick="resetFailedModels()" title="Unblock failed models">Reset Blocked</button>
             <div class="active-models-container" id="active-models"></div>
         </div>
-
         <div id="chat-box"></div>
-        
         <div id="input-area">
-            <textarea id="user-input" placeholder="Send a message... Use @nickname to target specific AIs." rows="1" oninput="autoResize(this)"></textarea>
-            <button id="send-btn" onclick="sendMessage()">
-                <span id="send-text">Send</span>
-                <div id="send-loader" class="loader" style="display:none;"></div>
-            </button>
+            <textarea id="user-input" placeholder="Send a message... @nickname targets a model." rows="1" oninput="autoResize(this)"></textarea>
+            <button id="send-btn" onclick="sendMessage()"><span id="send-text">Send</span><div id="send-loader" class="loader" style="display:none;"></div></button>
         </div>
     </div>
 </div>
 
 <script>
-    let currentUser = null;
-    let activeModels = [];
-    let history = [];
-    let currentChatId = null;
-    let isSending = false;
+    let currentUser = null, activeModels = [], history = [], currentChatId = null, isSending = false;
+    let allAvailableModels = [];
     let failedModels = JSON.parse(localStorage.getItem('conclave_failed_models') || '[]');
+    let blacklistedModels = JSON.parse(localStorage.getItem('conclave_blacklisted_models') || '[]');
 
-    function getUsers() { return JSON.parse(localStorage.getItem('conclave_users') || '[]'); }
-    function saveUsers(users) { localStorage.setItem('conclave_users', JSON.stringify(users)); }
+    const getUsers = () => JSON.parse(localStorage.getItem('conclave_users') || '[]');
+    const saveUsers = u => localStorage.setItem('conclave_users', JSON.stringify(u));
+
+    function switchTab(tab) {
+        document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.sidebar-content').forEach(c => c.classList.remove('active'));
+        document.querySelector(`.sidebar-tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        if (tab === 'models') renderModelsList();
+        if (tab === 'settings') document.getElementById('settings-username').innerText = currentUser || '-';
+    }
 
     function register() {
-        const u = document.getElementById('username').value;
-        const p = document.getElementById('password').value;
-        if(!u || !p) return alert("Enter user and pass");
+        const u = username.value, p = password.value;
+        if (!u || !p) return alert("Enter user and pass");
         let users = getUsers();
         if (users.find(x => x.username === u)) return alert("User exists");
         users.push({ username: u, password: p, chats: [] });
-        saveUsers(users);
-        login();
+        saveUsers(users); login();
     }
 
     function login() {
-        const u = document.getElementById('username').value;
-        const p = document.getElementById('password').value;
-        let users = getUsers();
-        let user = users.find(x => x.username === u && x.password === p);
+        const u = username.value, p = password.value;
+        let user = getUsers().find(x => x.username === u && x.password === p);
         if (!user) return alert("Invalid credentials");
         currentUser = user.username;
-        document.getElementById('auth-container').style.display = 'none';
-        document.getElementById('app-container').style.display = 'flex';
-        document.getElementById('logout-btn').style.display = 'block';
+        authContainer.style.display = 'none';
+        appContainer.style.display = 'flex';
+        logoutBtn.style.display = 'block';
         renderChatList(user.chats);
         loadModels();
     }
@@ -201,31 +240,24 @@
     function logout() { currentUser = null; location.reload(); }
 
     function newChat() {
-        currentChatId = 'chat_' + Date.now();
-        history = [];
-        activeModels = [];
-        document.getElementById('chat-box').innerHTML = '';
-        document.getElementById('current-chat-title').innerText = 'New Chat';
+        currentChatId = 'chat_' + Date.now(); history = []; activeModels = [];
+        chatBox.innerHTML = ''; currentChatTitle.innerText = 'New Chat';
         renderActiveModels();
         renderChatList(getUsers().find(u => u.username === currentUser)?.chats || []);
     }
 
     function saveChat() {
-        if(!currentUser || !currentChatId) return;
-        let users = getUsers();
-        let user = users.find(x => x.username === currentUser);
-        if(!user) return;
-        let existingIndex = user.chats.findIndex(c => c.id === currentChatId);
-        let chatData = { id: currentChatId, name: document.getElementById('current-chat-title').innerText, history, models: activeModels };
-        if (existingIndex >= 0) user.chats[existingIndex] = chatData;
-        else user.chats.push(chatData);
-        saveUsers(users);
-        renderChatList(user.chats);
+        if (!currentUser || !currentChatId) return;
+        let users = getUsers(), user = users.find(x => x.username === currentUser);
+        if (!user) return;
+        let idx = user.chats.findIndex(c => c.id === currentChatId);
+        let data = { id: currentChatId, name: currentChatTitle.innerText, history, models: activeModels };
+        if (idx >= 0) user.chats[idx] = data; else user.chats.push(data);
+        saveUsers(users); renderChatList(user.chats);
     }
 
     function renderChatList(chats) {
-        const list = document.getElementById('chat-list');
-        list.innerHTML = '';
+        const list = document.getElementById('chat-list'); list.innerHTML = '';
         chats.forEach(c => {
             const div = document.createElement('div');
             div.className = `chat-item ${c.id === currentChatId ? 'active' : ''}`;
@@ -236,22 +268,13 @@
 
     function loadChat(id) {
         let user = getUsers().find(u => u.username === currentUser);
-        let chat = user.chats.find(c => c.id === id);
-        if(!chat) return;
-        currentChatId = chat.id;
-        history = chat.history;
-        activeModels = chat.models;
-        document.getElementById('chat-box').innerHTML = '';
-        document.getElementById('current-chat-title').innerText = chat.name;
+        let chat = user.chats.find(c => c.id === id); if (!chat) return;
+        currentChatId = chat.id; history = chat.history; activeModels = chat.models;
+        chatBox.innerHTML = ''; currentChatTitle.innerText = chat.name;
         renderActiveModels();
         history.forEach(msg => {
-            if(msg.role === 'user') addMessage('user', msg.content);
-            else {
-                msg.content.split('\n\n').forEach(p => {
-                    const match = p.match(/\[(.*?)\]: (.*)/s);
-                    if(match) addMessage('ai', match[2], match[1]);
-                });
-            }
+            if (msg.role === 'user') addMessage('user', msg.content);
+            else msg.content.split('\n\n').forEach(p => { const m = p.match(/\[(.*?)\]: (.*)/s); if (m) addMessage('ai', m[2], m[1]); });
         });
         renderChatList(user.chats);
     }
@@ -259,209 +282,40 @@
     function renameChat(id) {
         let user = getUsers().find(u => u.username === currentUser);
         let chat = user.chats.find(c => c.id === id);
-        let newName = prompt("Enter new name:", chat.name);
-        if(newName) {
-            chat.name = newName;
-            saveUsers(user);
-            renderChatList(user.chats);
-            if(id === currentChatId) document.getElementById('current-chat-title').innerText = newName;
-        }
+        let newName = prompt("New name:", chat.name);
+        if (newName) { chat.name = newName; saveUsers(user); renderChatList(user.chats); if (id === currentChatId) currentChatTitle.innerText = newName; }
     }
 
     function deleteChat(id) {
-        if(!confirm("Delete this chat?")) return;
-        let users = getUsers();
-        let user = users.find(u => u.username === currentUser);
+        if (!confirm("Delete this chat?")) return;
+        let users = getUsers(), user = users.find(u => u.username === currentUser);
         user.chats = user.chats.filter(c => c.id !== id);
         saveUsers(users);
-        if(id === currentChatId) newChat();
+        if (id === currentChatId) newChat();
         renderChatList(user.chats);
     }
 
     function branchChat() {
-        if(!currentChatId) return;
+        if (!currentChatId) return;
         let user = getUsers().find(u => u.username === currentUser);
         let chat = user.chats.find(c => c.id === currentChatId);
         currentChatId = 'chat_' + Date.now();
-        history = [...chat.history];
-        activeModels = [...chat.models];
-        document.getElementById('current-chat-title').innerText = "Branch: " + chat.name;
+        history = [...chat.history]; activeModels = [...chat.models];
+        currentChatTitle.innerText = "Branch: " + chat.name;
         saveChat();
-        loadChat(currentChatId);
     }
 
+    // --- MODELS ---
     async function loadModels() {
         try {
             const res = await fetch('/api/models');
-            const models = await res.json();
+            allAvailableModels = await res.json();
             const select = document.getElementById('model-select');
             select.innerHTML = '';
-            models.forEach(m => {
-                if (!failedModels.includes(m.id)) {
-                    const opt = document.createElement('option');
-                    opt.value = m.id;
-                    opt.innerText = m.name;
-                    select.appendChild(opt);
-                }
+            allAvailableModels.filter(m => !blacklistedModels.includes(m.id) && !failedModels.includes(m.id)).forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id; opt.innerText = m.name;
+                select.appendChild(opt);
             });
-        } catch (e) { alert("Error loading models"); }
-    }
-
-    function filterModels() {
-        const search = document.getElementById('model-search').value.toLowerCase();
-        const select = document.getElementById('model-select');
-        Array.from(select.options).forEach(opt => {
-            opt.style.display = opt.text.toLowerCase().includes(search) ? 'block' : 'none';
-        });
-    }
-
-    function resetFailedModels() {
-        failedModels = [];
-        localStorage.setItem('conclave_failed_models', JSON.stringify(failedModels));
-        loadModels();
-        addMessage('system', 'Blocked models reset successfully.', 'success');
-    }
-
-    function addModel() {
-        const id = document.getElementById('model-select').value;
-        const nickname = document.getElementById('nickname-input').value.trim();
-        if(!id) return;
-        activeModels.push({ id, nickname });
-        document.getElementById('nickname-input').value = '';
-        renderActiveModels();
-        saveChat();
-    }
-
-    function removeModel(index) {
-        activeModels.splice(index, 1);
-        renderActiveModels();
-        saveChat();
-    }
-
-    function renderActiveModels() {
-        const container = document.getElementById('active-models');
-        container.innerHTML = '';
-        activeModels.forEach((m, index) => {
-            const chip = document.createElement('div');
-            chip.className = 'model-chip';
-            chip.innerHTML = `${m.nickname || m.id.split(':').pop()} <span class="remove" onclick="removeModel(${index})">✕</span>`;
-            container.appendChild(chip);
-        });
-    }
-
-    function escapeHtml(unsafe) { return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
-    function formatMentions(html) { return html.replace(/@([a-zA-Z0-9_\-]+)/g, '<span class="mention">@$1</span>'); }
-
-    function addMessage(sender, text, name = '', type = '') {
-        const chatBox = document.getElementById('chat-box');
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `message ${sender}-message ${type}`;
-        if (sender === 'ai') {
-            const nameDiv = document.createElement('div');
-            nameDiv.className = 'ai-name';
-            nameDiv.innerText = name;
-            msgDiv.appendChild(nameDiv);
-        }
-        const contentDiv = document.createElement('div');
-        if (sender === 'ai') {
-            contentDiv.innerHTML = formatMentions(marked.parse(text));
-        } else {
-            contentDiv.innerHTML = formatMentions(escapeHtml(text));
-        }
-        msgDiv.appendChild(contentDiv);
-        chatBox.appendChild(msgDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    function toggleSendButton(state) {
-        isSending = state;
-        document.getElementById('send-btn').disabled = state;
-        document.getElementById('send-text').style.display = state ? 'none' : 'block';
-        document.getElementById('send-loader').style.display = state ? 'block' : 'none';
-    }
-
-    async function sendToBackend(messageText, targetModels) {
-        const res = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: messageText, history: history, models: targetModels })
-        });
-        const data = await res.json();
-        if (data.responses) {
-            history = data.history;
-            return data.responses;
-        } else { throw new Error(data.error || "Backend error"); }
-    }
-
-    async function sendMessage() {
-        if (isSending) return;
-        if (activeModels.length === 0) return alert("Add at least one model first!");
-        const input = document.getElementById('user-input');
-        const text = input.value.trim();
-        if (!text) return;
-
-        addMessage('user', text);
-        input.value = '';
-        autoResize(input);
-        toggleSendButton(true);
-
-        try {
-            const mentionedModels = activeModels.filter(m => text.toLowerCase().includes(`@${(m.nickname || m.id.split(':').pop()).toLowerCase()}`));
-            const targetModels = mentionedModels.length > 0 ? mentionedModels : activeModels;
-            let responses = await sendToBackend(text, targetModels);
-            let conversationDepth = 0;
-            const maxDepth = 3;
-
-            while (responses.length > 0 && conversationDepth < maxDepth) {
-                let nextMessageText = "";
-                let nextTargetModels = [];
-
-                for (const res of responses) {
-                    // Auto-Delete Failed Models
-                    if (res.text.startsWith("Error:")) {
-                        addMessage('system', `${res.name} encountered an error and was removed from the chat.`, 'error');
-                        let failedModel = activeModels.find(m => (m.nickname || m.id.split(':').pop()) === res.name);
-                        if (failedModel) {
-                            activeModels = activeModels.filter(m => m.id !== failedModel.id);
-                            failedModels.push(failedModel.id);
-                            localStorage.setItem('conclave_failed_models', JSON.stringify(failedModels));
-                            renderActiveModels();
-                            loadModels(); // Refresh dropdown to remove it
-                        }
-                        continue; // Skip adding error to chat history
-                    }
-
-                    addMessage('ai', res.text, res.name);
-                    history.push({ role: "assistant", content: `[${res.name}]: ${res.text}` });
-
-                    const aiMentions = activeModels.filter(m => res.text.toLowerCase().includes(`@${(m.nickname || m.id.split(':').pop()).toLowerCase()}`));
-                    if (aiMentions.length > 0) {
-                        nextMessageText = res.text;
-                        nextTargetModels = aiMentions;
-                    }
-                }
-
-                if (nextMessageText && nextTargetModels.length > 0) {
-                    conversationDepth++;
-                    responses = await sendToBackend(nextMessageText, nextTargetModels);
-                } else { break; }
-            }
-            saveChat();
-        } catch (e) {
-            addMessage('system', 'Network Error: Backend timed out or crashed.', 'error');
-        } finally {
-            toggleSendButton(false);
-        }
-    }
-
-    function autoResize(textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
-    }
-
-    document.getElementById('user-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-    });
-</script>
-</body>
-</html>
+            renderModelsList();
+        } catch (e) { 
