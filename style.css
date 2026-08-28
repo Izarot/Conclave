@@ -101,3 +101,27 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-color); color: var
 ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
 .loader { border: 2px solid #000; border-top: 2px solid #fff; border-radius: 50%; width: 14px; height: 14px; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* --- MOBILE RESPONSIVE --- */
+.menu-btn { display: none; background: transparent; border: 1px solid var(--border-color); color: #fff; font-size: 18px; border-radius: 8px; padding: 4px 12px; cursor: pointer; }
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 90; }
+
+@media (max-width: 768px) {
+    #sidebar {
+        position: fixed; left: -290px; top: 0; height: 100vh;
+        z-index: 100; transition: left 0.3s ease;
+        width: 280px; box-shadow: 5px 0 20px rgba(0,0,0,0.5);
+    }
+    #sidebar.open { left: 0; }
+    .overlay.show { display: block; }
+    .menu-btn { display: inline-block; }
+    #chat-area { width: 100%; }
+    #chat-box { padding: 15px; }
+    .message { max-width: 90%; }
+    #models-bar { gap: 6px; padding: 10px; }
+    .model-dropdown { max-width: 100%; flex: 1; }
+    .auth-card { margin: 0 15px; }
+    #input-area { padding: 12px; gap: 10px; }
+    #send-btn { min-width: 70px; height: 44px; }
+    #user-input { padding: 12px; }
+}
