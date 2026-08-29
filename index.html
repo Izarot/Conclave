@@ -3,241 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Conclave</title>
-    <style>
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: #fff; display: flex; height: 100vh; }
-        #sidebar { width: 250px; background: #11111a; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        #chat-area { flex: 1; display: flex; flex-direction: column; }
-        .p-10 { padding: 10px; }
-        .btn { background: #00ffcc; color: #000; border: none; padding: 10px; width: 100%; cursor: pointer; font-weight: bold; border-radius: 5px; margin-top: 5px; }
-        .btn-sec { background: #1a1a2e; color: #fff; border: 1px solid #444; }
-        input, select { width: 100%; padding: 10px; margin-top: 5px; background: #1a1a2e; border: 1px solid #444; color: #fff; border-radius: 5px; box-sizing: border-box; }
-        #chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .msg { padding: 10px 15px; border-radius: 15px; max-width: 80%; white-space: pre-wrap; }
-        .user { align-self: flex-end; background: #00ffcc; color: #000; }
-        .ai { align-self: flex-start; background: #1a1a2e; border: 1px solid #444; }
-        .name { font-size: 0.8em; font-weight: bold; margin-bottom: 4px; display: block; }
-        #models-bar { padding: 10px; background: #11111a; border-bottom: 1px solid #333; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .chip { background: #333; padding: 5px 10px; border-radius: 15px; font-size: 0.8em; display: flex; align-items: center; gap: 5px; }
-        .chip span { cursor: pointer; color: #ff3333; font-weight: bold; }
-        #auth-box { width: 300px; margin: auto; text-align: center; background: #11111a; padding: 20px; border-radius: 10px; border: 1px solid #333; }
-        #input-area { display: flex; padding: 20px; background: #11111a; border-top: 1px solid #333; gap: 10px; }
-    </style>
+    <title>The Conclave</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <link rel="icon" href="logo.svg" type="image/svg+xml">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script defer src="app.js"></script>
 </head>
 <body>
 
-<div id="sidebar" class="p-10">
-    <h3>Conclave</h3>
-    <button class="btn btn-sec" onclick="newChat()">+ New Chat</button>
-    <div id="chat-list" style="flex:1; margin-top:10px; overflow-y:auto;"></div>
-    <button class="btn btn-sec" onclick="logout()" id="logout-btn" style="display:none;">Logout</button>
+<div id="sidebar">
+    <div class="sidebar-header">
+        <svg viewBox="0 0 100 100" width="26" height="26" xmlns="http://www.w3.org/2000/svg">
+            <g stroke="#ffffff" stroke-width="2"><line x1="50" y1="20" x2="50" y2="50"/><line x1="78.5" y1="40.7" x2="50" y2="50"/><line x1="67.6" y1="74.3" x2="50" y2="50"/><line x1="32.4" y1="74.3" x2="50" y2="50"/><line x1="21.5" y1="40.7" x2="50" y2="50"/></g>
+            <circle cx="50" cy="20" r="8" fill="#ffffff"/><circle cx="78.5" cy="40.7" r="8" fill="#ffffff"/><circle cx="67.6" cy="74.3" r="8" fill="#ffffff"/><circle cx="32.4" cy="74.3" r="8" fill="#ffffff"/><circle cx="21.5" cy="40.7" r="8" fill="#ffffff"/><circle cx="50" cy="50" r="12" fill="#2ee6a8"/>
+        </svg>
+        <h2>The Conclave</h2>
+    </div>
+
+    <div class="sidebar-tabs">
+        <button class="sidebar-tab active" onclick="switchTab('chats')">Chats</button>
+        <button class="sidebar-tab" onclick="switchTab('models')">Models</button>
+        <button class="sidebar-tab" onclick="switchTab('settings')">Settings</button>
+    </div>
+
+    <div class="sidebar-content active" id="tab-chats">
+        <button class="new-chat-btn" onclick="newChat()">+ New Chat</button>
+        <div id="chat-list"></div>
+        <button class="logout-btn" onclick="logout()" id="logout-btn" style="display:none;">Logout</button>
+    </div>
+
+    <div class="sidebar-content" id="tab-models">
+        <div class="models-toolbar">
+            <input type="text" class="model-search" id="models-tab-search" placeholder="Search models..." oninput="renderModelsList()">
+        </div>
+        <div class="model-count" id="model-count"></div>
+        <div id="models-list"></div>
+        <div class="models-note">Blacklisted models are hidden everywhere on this device. Add models from the dropdown in the chat header.</div>
+    </div>
+
+    <div class="sidebar-content" id="tab-settings">
+        <div class="settings-section">
+            <h4>Account</h4>
+            <div class="setting-row"><span>Logged in as</span><span class="value" id="settings-username">-</span></div>
+        </div>
+        <div class="settings-section">
+            <h4>Models</h4>
+            <button class="danger-btn" onclick="resetFailedModels()">Unblock failed models</button>
+        </div>
+        <div class="settings-section">
+            <h4>Danger Zone</h4>
+            <button class="danger-btn" onclick="clearAllData()">Clear ALL data (chats, accounts)</button>
+        </div>
+        <div class="version-info">The Conclave v1.0<br>Made by Izarot ⚡</div>
+    </div>
 </div>
 
 <div id="chat-area">
-    <div id="auth-container" style="display:flex; flex:1; align-items:center; justify-content:center;">
-        <div id="auth-box">
-            <h2>Welcome</h2>
-            <input type="text" id="username" placeholder="Username">
-            <input type="password" id="password" placeholder="Password">
-            <button class="btn" onclick="login()">Login</button>
-            <button class="btn btn-sec" onclick="register()">Register</button>
+    <div id="auth-container">
+        <div class="auth-card">
+            <h2>Welcome to The Conclave</h2>
+            <input type="text" class="auth-input" id="username" placeholder="Username">
+            <input type="password" class="auth-input" id="password" placeholder="Password">
+            <button class="auth-btn" onclick="login()">Login</button>
+            <button class="auth-btn secondary" onclick="register()">Create Account</button>
         </div>
     </div>
 
-    <div id="app-container" style="display:none; flex-direction:column; flex:1;">
-        <div id="models-bar">
-            <select id="model-select"><option value="">Loading models...</option></select>
-            <input type="text" id="nickname-input" placeholder="Nickname (optional)" style="width: 150px;">
-            <button class="btn" style="width:auto; margin-top:0;" onclick="addModel()">Add Model</button>
-            <div id="active-models" style="display:flex; gap:5px;"></div>
+    <div id="app-container">
+                <div class="chat-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+                <h3 id="current-chat-title">New Chat</h3>
+            </div>
+            <button class="branch-btn" onclick="branchChat()">Branch</button>
         </div>
-
+        <div id="models-bar">
+            <select class="model-dropdown" id="model-select"><option value="">Loading models...</option></select>
+            <input type="text" class="nickname-input" id="nickname-input" placeholder="Nickname">
+            <button class="add-model-btn" onclick="addModel()">+ Add</button>
+            <div class="active-models-container" id="active-models"></div>
+        </div>
         <div id="chat-box"></div>
-        
         <div id="input-area">
-            <input type="text" id="user-input" placeholder="Send a message..." autocomplete="off" style="flex:1;">
-            <button class="btn" style="width:auto; margin-top:0;" onclick="sendMessage()">SEND</button>
+            <textarea id="user-input" placeholder="Send a message... @nickname targets a model." rows="1" oninput="autoResize(this)"></textarea>
+            <button id="send-btn" onclick="sendMessage()"><span id="send-text">Send</span><div id="send-loader" class="loader" style="display:none;"></div></button>
         </div>
     </div>
 </div>
 
-<script>
-    let currentUser = null;
-    let activeModels = [];
-    let history = [];
-    let currentChatId = null;
+<div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
 
-    // --- LOCAL DB (BROWSER STORAGE) ---
-    function getUsers() { return JSON.parse(localStorage.getItem('conclave_users') || '[]'); }
-    function saveUsers(users) { localStorage.setItem('conclave_users', JSON.stringify(users)); }
-
-    function register() {
-        const u = document.getElementById('username').value;
-        const p = document.getElementById('password').value;
-        if(!u || !p) return alert("Enter user and pass");
-        let users = getUsers();
-        if (users.find(x => x.username === u)) return alert("User exists");
-        users.push({ username: u, password: p, chats: [] });
-        saveUsers(users);
-        login();
-    }
-
-    function login() {
-        const u = document.getElementById('username').value;
-        const p = document.getElementById('password').value;
-        let users = getUsers();
-        let user = users.find(x => x.username === u && x.password === p);
-        if (!user) return alert("Invalid credentials");
-        
-        currentUser = user.username;
-        document.getElementById('auth-container').style.display = 'none';
-        document.getElementById('app-container').style.display = 'flex';
-        document.getElementById('logout-btn').style.display = 'block';
-        renderChatList(user.chats);
-        loadModels();
-    }
-
-    function logout() {
-        currentUser = null;
-        location.reload();
-    }
-
-    function newChat() {
-        currentChatId = 'chat_' + Date.now();
-        history = [];
-        activeModels = [];
-        document.getElementById('chat-box').innerHTML = '';
-        renderActiveModels();
-    }
-
-    function saveChat(lastMsg) {
-        if(!currentUser) return;
-        let users = getUsers();
-        let user = users.find(x => x.username === currentUser);
-        let existingIndex = user.chats.findIndex(c => c.id === currentChatId);
-        let chatData = { id: currentChatId, name: lastMsg.substring(0, 20), history, models: activeModels };
-        if (existingIndex >= 0) user.chats[existingIndex] = chatData;
-        else user.chats.push(chatData);
-        saveUsers(users);
-        renderChatList(user.chats);
-    }
-
-    function renderChatList(chats) {
-        const list = document.getElementById('chat-list');
-        list.innerHTML = '';
-        chats.forEach(c => {
-            const btn = document.createElement('button');
-            btn.className = 'btn btn-sec';
-            btn.innerText = c.name;
-            btn.onclick = () => loadChat(c);
-            list.appendChild(btn);
-        });
-    }
-
-    function loadChat(chat) {
-        currentChatId = chat.id;
-        history = chat.history;
-        activeModels = chat.models;
-        document.getElementById('chat-box').innerHTML = '';
-        renderActiveModels();
-        history.forEach(msg => {
-            if(msg.role === 'user') addMessage('user', msg.content);
-            else {
-                msg.content.split('\n\n').forEach(p => {
-                    const match = p.match(/\[(.*?)\]: (.*)/s);
-                    if(match) addMessage('ai', match[2], match[1]);
-                });
-            }
-        });
-    }
-
-    // --- MODELS & CHAT ---
-    async function loadModels() {
-        const res = await fetch('/api/models');
-        const models = await res.json();
-        const select = document.getElementById('model-select');
-        select.innerHTML = '';
-        models.forEach(m => {
-            const opt = document.createElement('option');
-            opt.value = m.id;
-            opt.innerText = m.name;
-            select.appendChild(opt);
-        });
-    }
-
-    function addModel() {
-        const id = document.getElementById('model-select').value;
-        const nickname = document.getElementById('nickname-input').value.trim();
-        if(!id) return;
-        activeModels.push({ id, nickname });
-        document.getElementById('nickname-input').value = '';
-        renderActiveModels();
-    }
-
-    function removeModel(index) {
-        activeModels.splice(index, 1);
-        renderActiveModels();
-    }
-
-    function renderActiveModels() {
-        const container = document.getElementById('active-models');
-        container.innerHTML = '';
-        activeModels.forEach((m, index) => {
-            const chip = document.createElement('div');
-            chip.className = 'chip';
-            chip.innerHTML = `${m.nickname || m.id} <span onclick="removeModel(${index})">x</span>`;
-            container.appendChild(chip);
-        });
-    }
-
-    function addMessage(sender, text, name = '') {
-        const chatBox = document.getElementById('chat-box');
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `msg ${sender}`;
-        if (name) {
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'name';
-            nameSpan.innerText = name;
-            msgDiv.appendChild(nameSpan);
-        }
-        const textSpan = document.createElement('span');
-        textSpan.innerText = text;
-        msgDiv.appendChild(textSpan);
-        chatBox.appendChild(msgDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    async function sendMessage() {
-        if (activeModels.length === 0) return alert("Add at least one model first!");
-        const input = document.getElementById('user-input');
-        const text = input.value.trim();
-        if (!text) return;
-
-        addMessage('user', text);
-        input.value = '';
-
-        try {
-            const res = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text, history: history, models: activeModels })
-            });
-            const data = await res.json();
-            if (data.responses) {
-                data.responses.forEach(r => addMessage('ai', r.text, r.name));
-                history = data.history;
-                saveChat(text);
-            } else {
-                addMessage('ai', 'Error: ' + data.error, 'System');
-            }
-        } catch (e) {
-            addMessage('ai', 'Network Error.', 'System');
-        }
-    }
-
-    document.getElementById('user-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
-</script>
 </body>
 </html>
