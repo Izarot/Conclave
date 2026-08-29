@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "conclave.twa",
+        "sha256_cert_fingerprints": ["55:C1:7D:14:69:0E:B1:DB:40:01:E1:B8:16:BD:C3:EE:57:C6:65:1B:90:34:47:37:12:75:FC:F5:B4:F2:39:CE"]
+      }
+    }]
